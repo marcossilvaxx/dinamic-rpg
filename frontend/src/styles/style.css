@@ -1,0 +1,80 @@
+*,
+html,
+body {
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  outline: none;
+  image-rendering: pixelated;
+  box-sizing: border-box;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  width: 100vw;
+  height: 100%;
+  background-color: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+body .loading {
+  position: absolute;
+  color: #fff;
+  font-size: 30px;
+}
+
+#game-container {
+  position: relative;
+}
+
+#game-container canvas {
+  /* flex: 1; */
+  /* width: 100%; */
+  height: 100vh;
+  aspect-ratio: 1920 / 1080;
+  overflow: visible;
+}
+
+#game-container .chat-container {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 8px;
+  width: 100%;
+  height: 30vh;
+  background-color: #220128;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+
+.chat-container div.messages-container {
+  width: 100%;
+  height: 70%;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.chat-container #chat-input {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  height: 30%;
+}
+
+.chat-container #chat-input textarea {
+  width: 90%;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.chat-container #chat-input button {
+  width: 10%;
+  border-radius: 8px;
+  font-size: 24px;
+  cursor: pointer;
+}
