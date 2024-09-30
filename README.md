@@ -2,7 +2,7 @@
 
 <img src="docs/game.png" alt="Game screenshot" style="width: 100%">
 
-Este repositório contém os arquivos do jogo RPG eletrônico desenvolvido para o artigo "[Aumentando a interatividade e imersão de jogos eletrônicos do gênero RPG com modelos de linguagem de larga escala](https://drive.google.com/file/d/132QPNaj88PNbER_lAMox8-WD4rPueuEo/view?usp=sharing)". O jogo se trata de uma prova de conceito de um RPG eletrônico integrado com um modelo de linguagem visando aumentar a interatividade e imersão dos jogadores. Logo abaixo, é descrito o passo a passo para configurar e rodar o jogo na sua máquina local.
+Este repositório contém os arquivos do jogo RPG eletrônico desenvolvido para o artigo "[Aumentando a interatividade e imersão de jogos eletrônicos do gênero RPG com modelos de linguagem de larga escala](https://drive.google.com/file/d/132QPNaj88PNbER_lAMox8-WD4rPueuEo/view?usp=sharing)", que se trata de um Trabalho de Conclusão de Curso do curso de Ciência da Computação da Universidade Federal de Campina Grande. O jogo se trata de uma prova de conceito de um RPG eletrônico integrado com um modelo de linguagem visando aumentar a interatividade e imersão dos jogadores. Logo abaixo, é descrito o passo a passo para configurar e rodar o jogo na sua máquina local.
 
 ## Requisitos
 
