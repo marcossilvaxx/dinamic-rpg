@@ -70,7 +70,7 @@ export const NUMBER_OF_NPCS = 5;
 
 ## Rodando o jogo
 
-Após realizar as etapas de instalação e configuração, execute o seguinte comando em ambos os diretórios `frontend/` e `banckend/`:
+Após realizar as etapas de instalação e configuração, execute o seguinte comando em ambos os diretórios `frontend/` e `backend/`:
 
 ```bash
 $ npm run dev
