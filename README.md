@@ -43,7 +43,7 @@ $ docker run --name redis-game -p 6379:6379 -d redis
 
 ## Configuração
 
-Renomeie o arquivo `env.example.json` localizado no diretório `backend/` para `env.json` e preencha os valores para `OPENAI_API_KEY` e `OPENAI_PROJECT_ID` com sua chave de API da OpenAI e o id do seu Projeto da OpenAI (que pode ser encontrado acessando o link: https://platform.openai.com/organization/projects). Em seguida, altere o valor de `REDIS_HOST` e `REDIS_PORT` para o host e porta do seu banco de dados Redis.
+Renomeie o arquivo `env.example.json` localizado no diretório `backend/` para `env.json` e preencha os valores para `OPENAI_API_KEY` e `OPENAI_PROJECT_ID` com sua chave de API da OpenAI e o id do seu Projeto da OpenAI (que pode ser encontrado acessando o link: https://platform.openai.com/organization/projects). Em seguida, altere o valor de `REDIS_HOST` e `REDIS_PORT` para o host e porta do seu banco de dados Redis. Qualquer valor também pode ser definido por variável de ambiente com o mesmo nome.
 
 ```javascript
 {
@@ -53,6 +53,26 @@ Renomeie o arquivo `env.example.json` localizado no diretório `backend/` para `
   "REDIS_PORT": 6379
 }
 ```
+
+Configurações opcionais (com seus valores padrão):
+
+| Chave | Padrão | Descrição |
+| --- | --- | --- |
+| `MODEL` | `gpt-6-luna` | Modelo da OpenAI utilizado (o mais barato da geração atual: US$ 0,10 / 0,50 por milhão de tokens de entrada/saída) |
+| `REASONING_EFFORT` | `none` | Esforço de raciocínio do modelo. Use `""` para modelos sem raciocínio, como o `gpt-4o-mini` |
+| `PORT` | `8080` | Porta do servidor websocket |
+| `RESET_DB_ON_START` | `false` | Apaga o banco Redis ao iniciar o backend (inclusive as partidas salvas) |
+| `MAX_MEMORY_MESSAGES` | `40` | Quantidade de mensagens lembradas por cada NPC |
+| `MAX_NPCS` | `12` | Quantidade máxima de NPCs por partida |
+| `DIALOG_TEMPERATURE` | `0.7` | Temperatura dos diálogos (valores menores deixam as falas mais diretas e coerentes) |
+| `PROMPT_CACHE` | `true` | Marca o contexto do mundo para o cache de prompt da OpenAI (modelos GPT-5.6+). Use `false` para modelos mais antigos |
+| `LOG_LLM_USAGE` | `true` | Mostra no console os tokens de cada chamada, incluindo os lidos do cache |
+| `WORLD_EVENT_INTERVAL_MS` | `300000` | Intervalo entre eventos do mundo (mínimo de 30 s). Use `0` para desativar |
+| `MS_PER_GAME_MINUTE` | `1000` | Velocidade do relógio do jogo (1000 = 1 segundo real por minuto; o dia dura 24 minutos) |
+| `SESSION_GRACE_MS` | `1800000` | Por quanto tempo a partida fica na memória depois que o jogador sai (depois disso ela continua salva no Redis) |
+| `SESSION_TTL_DAYS` | `7` | Partidas salvas que não forem jogadas por esse número de dias são apagadas do Redis (`0` mantém para sempre) |
+| `DAYS_PER_SEASON` | `2` | Quantos dias do jogo dura cada estação do ano |
+| `MAX_NPC_FACTS` | `20` | Quantidade de fatos (coisas que ouviu/aprendeu) lembrados por cada NPC |
 
 Além disso, também renomeie o arquivo `env.example.json` encontrado no diretório `frontend/src/config/` para `env.json` e preencha `WEBSOCKET_SERVER_URL` com a url do servidor backend, que, por padrão, já está definido como `ws://localhost:8080`.
 
@@ -78,9 +98,153 @@ $ npm run dev
 
 Em seguida acesse http://localhost:5173/ para iniciar o jogo. Divirta-se!
 
-#### IMPORTANTE: Ao reiniciar o backend, os dados do banco de dados são apagados.
+## Vida na vila
 
-#### IMPORTANTE²: Se o backend for reiniciado, a página http://localhost:5173/ do frontend também precisa ser recarregada, para novos dados e NPCs serem gerados novamente.
+O jogo já roda enquanto o mundo é gerado: o mapa aparece na hora, e os moradores chegam à vila conforme são criados.
+
+**Rotinas:** o mapa tem lugares definidos (taverna, armazém, píer, jardim...), em `frontend/src/levels/places.js`. A história do mundo é escrita em torno deles, e cada NPC ganha uma ocupação e uma rotina de 2 ou 3 lugares, por onde circula ao longo do tempo.
+
+**Guiar e apresentar:** no chat, peça a um NPC para levar você a um lugar ("me leva ao píer?") ou para apresentar outro morador. Ele vai andando e espera se você ficar para trás.
+
+**Eventos do mundo:** de tempos em tempos acontece algo na vila (um mercador chegou, uma cabra fugiu...). A notícia aparece no topo da tela, e todos os NPCs passam a comentá-la.
+
+**Clima:** o tempo muda ao longo do dia: céu limpo, nublado, chuva, tempestade (com raios e trovões) ou neblina pela manhã. Na chuva, os moradores procuram abrigo na taverna ou em casa, e o clima entra nas conversas.
+
+**Festas da vila:** todo dia, às 9h, é anunciado o evento do fim da tarde (feira, competição, dança, reunião...). Das 17h às 19h a vila inteira se reúne no lugar marcado (ou na taverna, se estiver chovendo) e os moradores conversam mais entre si. Depois, todos lembram da festa.
+
+**Trabalho:** no local de trabalho, durante o expediente, cada morador mostra um ícone do que está fazendo (forja, pesca, cozinha...). Alguns vendem coisas do seu ofício, e o preço muda com a sua reputação: mais barato para quem é querido, mais caro para quem não é.
+
+**Estações do ano:** primavera, verão, outono e inverno se alternam a cada 2 dias do jogo. No inverno neva e a comida fica mais cara, no verão quase não chove, e no outono os preços da colheita caem. O primeiro dia de cada estação tem uma festa própria, e a tela muda de tom.
+
+**Economia:** cada morador tem um estoque que acaba e é reposto toda manhã, os moradores compram uns dos outros, e eventos (uma tempestade, falta de farinha) sobem ou baixam os preços de alguém. Você também pode vender o que tem aos moradores.
+
+**Combate:** **Espaço** ataca na direção em que você está virado, **Shift** dá um passo rápido para trás (esquiva) e **H** usa o item que mais cura (poções, remédios, ervas, comida). O estilo de cada um vem do personagem e da profissão: guerreiros batem forte, ninjas são rápidos e esquivam, arqueiros e magos atacam de longe, curandeiros se curam uma vez. Antes de cada golpe o oponente mostra um "!", que é a hora de esquivar. Armas e armaduras que você carrega (espada, adaga, escudo, armadura...) aumentam seu dano e sua vida.
+
+- **Treino:** peça a um morador para treinar ("vamos treinar?"). Quem estiver perdendo desiste, ninguém se machuca e vocês ficam mais próximos.
+- **Duelos e brigas:** um rival pode te desafiar para um duelo, e um morador provocado (ou o culpado encurralado) pode partir para cima de você. Nesses casos quem perde desmaia: o morador acorda em casa e fica machucado por algumas horas, e você acorda na taverna, com menos moedas.
+- **Bater em alguém:** quem é corajoso revida, quem é tímido foge gritando por socorro. Se a vila tiver um guarda, ele vem separar e te multa. Quem estiver por perto vê a briga, e isso muda o que pensam de você, vira notícia e fofoca.
+- **Bandidos:** a cada 3 dias, às 15h, bandidos invadem a vila e os moradores se escondem. Derrote todos para ganhar o que eles deixam cair, a gratidão de todos e o título "Protetor da vila". Se ninguém os impedir, eles roubam as mercadorias de alguém e vão embora.
+- Uma chamada ao modelo escreve as provocações de cada oponente e o que ele vai lembrar da luta.
+
+**Pescar e colher:** perto do píer aparece **F - Pescar**, e nos campos **F - Colher**. Aperte F e depois F de novo quando o ponteiro estiver na faixa verde (na dourada é perfeito). O que você encontra muda com a estação, e dá para vender, trocar ou dar de presente.
+
+**Visitantes:** a cada dois dias chega alguém de fora pelo píer (um mercador, um bardo, uma herbalista...), com coisas raras para vender. Fica até as 20h e depois vai embora.
+
+**Vida familiar:** moradores muito próximos começam a namorar, ficam noivos (o casamento vira a festa do dia), se casam, vão morar juntos e têm filhos. Tudo vira notícia.
+
+**Sonhos:** cada morador tem uma meta pessoal, que avança um pouco por dia e mais rápido quando você ajuda. Quando ele realiza, é notícia, e ele passa a sonhar com outra coisa.
+
+**Interface:** minimapa no canto (**N** mostra ou esconde), nome do lugar ao entrar nele e sons sintetizados: pássaros de dia, grilos à noite, chuva, trovões, passos e a "voz" de cada personagem. **M** liga ou desliga o som. **P** pausa e despausa o jogo: o tempo da vila (relógio, clima, festas, prazos e eventos) para.
+
+## Objetivos e vida da vila
+
+Aperte **J** para abrir o diário, com pedidos, mistério, pessoas, inventário, conversas ouvidas e notícias.
+
+- **Pedidos:** os moradores podem pedir ajuda com problemas concretos, como levar um recado, descobrir algo ou trazer um item. Cumprir um pedido melhora a reputação com quem pediu, e às vezes rende uma recompensa. Pedidos urgentes têm prazo: perto do fim, quem pediu vem te lembrar, e perder o prazo deixa a pessoa decepcionada. Ajudar alguém também irrita os inimigos dessa pessoa.
+- **Reputação:** cada morador tem uma opinião sobre você, de -10 a 10, que muda com o que você diz. Grosseria tem consequência: a pessoa responde seco, recusa ajuda e comenta com os outros.
+- **Fofoca sobre você:** quando dois moradores falam de você, a opinião de um puxa a do outro. Quem nunca te viu pode já chegar desconfiado, ou curioso para te conhecer.
+- **Mistério:** cada vila tem um mistério. Um morador é o culpado, tem um álibi falso e só confessa diante de provas; cada um dos outros sabe uma pista. O diário guarda o que cada um disse sobre o caso (depoimentos), para você comparar e achar as contradições. Um dos moradores guarda uma **prova** física: se ele confiar em você, entrega. Mostrar a prova ao culpado faz ele confessar, e com ela uma acusação errada não gasta tentativa. Você também pode acusar alguém pelo diário (são 2 tentativas).
+- **Mistérios em sequência:** algumas horas depois de um caso terminar, aparece outro. Cada caso resolvido rende um título ("Curioso da vila", "Investigador", "Detetive da vila") que os moradores conhecem e respeitam.
+- **Segredos e mentiras:** cada morador tem um segredo e mente sobre ele, a menos que confie muito em você.
+- **Negociar e subornar:** ofereça moedas ou itens por informações e favores. Pessoas honestas recusam e se ofendem, as gananciosas aceitam.
+- **Inventário:** você começa com 10 moedas. Os moradores podem te dar, vender e aceitar itens ou pagamentos.
+- **Moradores que te procuram:** quem tem algo a dizer (uma pista, um lembrete, algo que ouviu sobre você) vai atrás de você, com um "!" sobre a cabeça. Ao abrir o chat, quem já te conhece fala primeiro e lembra da última conversa.
+- **Dia e noite:** um dia do jogo dura 24 minutos. À noite a tela escurece e os moradores dormem em casa. Nas refeições eles vão à taverna, e à noite parte deles fica por lá. Acordar alguém tem efeito: a pessoa sabe que foi acordada.
+- **Humor:** o humor de cada morador muda com as conversas, os eventos e o seu comportamento, e afeta como ele fala.
+- **Amizades e brigas:** moradores com afinidade alta viram amigos e se encontram mais. Os que brigam passam a se evitar, com um ícone de raiva. Essas mudanças viram notícia.
+- **Memória de longo prazo:** quando um morador acumula fatos demais, os mais antigos viram entradas de um diário em vez de serem esquecidos.
+- **Amizade, namoro e rivalidade:** além da reputação, cada morador pode virar seu amigo, melhor amigo, namorado(a) (um de cada vez) ou rival. Cada um adora e detesta certos presentes, e você pode convidar alguém para a festa do dia. Um amigo que anda com você ajuda a convencer os outros a falar.
+- **Escolhas com consequência:** quando o culpado confessa, só você sabe. Decida no diário: contar à vila (justiça e título) ou guardar o segredo (um aliado e algumas moedas). Mas o segredo pode vazar, e aí a vila não gosta nada.
+- **Brigas para resolver:** quando dois moradores viram inimigos, um deles te pede para ajudar a fazer as pazes. Convença o outro, e os dois voltam a se falar.
+- **Partida salva:** o jogo é salvo no Redis o tempo todo. Ao recarregar a página você volta para a mesma vila, mesmo que o backend tenha sido reiniciado.
+- **Respostas ao vivo:** a fala do NPC aparece no chat enquanto ele "escreve" (streaming).
+
+## Conversas entre NPCs
+
+Quando dois NPCs se encontram pelo mapa, eles podem conversar entre si. As falas aparecem em balões, e, se o jogador estiver por perto, também num registro no canto da tela e na aba "Conversas" do diário. Os NPCs lembram dessas conversas e do que o jogador contou a eles, e podem espalhar essas informações (fofoca) para outros NPCs e para o próprio jogador. Apertar **E** perto de um NPC que está conversando interrompe a conversa.
+
+**Escutar escondido:** se o jogador está perto o bastante para ouvir, mas longe o bastante para não ser visto, os NPCs acham que estão sozinhos e falam o que pensam de verdade: fofocas, opiniões sobre você e até segredos. O culpado do mistério pode deixar escapar um detalhe. Se você chegar perto demais, eles percebem, mudam de assunto e não gostam de ter sido espionados.
+
+A frequência das conversas é configurada em `NPC_CHAT`, no arquivo `frontend/src/config/constants.js`, e o idioma em `NPC_CONVERSATION_LANGUAGE`. Para ver as conversas, as rotinas e os eventos acontecendo logo no início, acesse http://localhost:5173/?fastNpcChat.
+
+Cada partida é independente: na primeira vez, o backend gera um novo mundo e novos NPCs. Ao recarregar a página, o jogo retoma a mesma partida, que fica salva no Redis por 7 dias sem ser jogada (ver `SESSION_TTL_DAYS`), mesmo que o backend seja reiniciado. Para começar uma vila nova, apague a chave `dinamic-rpg:session` do `localStorage` do navegador (ou abra o jogo numa janela anônima).
+
+## Testes e lint
+
+```bash
+# Em backend/ ou frontend/
+$ npm test
+$ npm run lint
+```
+
+## Arquitetura
+
+```
+backend/
+  index.js                 Servidor websocket: cria uma GameSession por conexão e roteia mensagens
+  config.js                Configuração (env.json + variáveis de ambiente)
+  protocol.js              Tipos de mensagem do websocket
+  game/GameSession.js      Núcleo de uma partida: NPCs, memória, relógio, o "tick" do tempo e o
+                           salvamento; delega o resto para as partes abaixo
+  game/VillageBuilder.js   Criação da vila (história, elenco e NPCs em paralelo)
+  game/PlayerChat.js       Chat com o jogador (streaming, saudação, companhia) e ações dos NPCs
+  game/NpcSocial.js        Conversas entre NPCs, relações, escuta escondida, fofoca e pazes
+  game/Quests.js           Pedidos, prazos e pedidos de paz entre inimigos
+  game/Commerce.js         Economia: estoque, preços (estação e eventos), vendas e compras
+  game/Bonds.js            Amizade, melhor amigo, namoro e rivalidade com o jogador; presentes e convites
+  game/Goals.js            Sonhos (metas pessoais) dos moradores
+  game/FamilyLife.js       Namoros, noivados, casamentos, mudanças e filhos
+  game/Visitors.js         Visitantes que passam um dia na vila
+  game/Activities.js       Pesca e coleta (o que se encontra em cada estação)
+  game/Combat.js           Lutas: treino, duelo e briga; testemunhas, guarda, desmaios e ferimentos
+  game/combatRules.js      Coragem e reação dos NPCs, guarda da vila e itens que curam
+  game/Bandits.js          Ataques de bandidos e o título de protetor da vila
+  game/seasons.js          Estações do ano
+  game/NpcConversation.js  Geração da conversa entre dois NPCs
+  game/PlayerState.js      Reputação, inventário, pedidos (com prazo), pessoas conhecidas e notícias
+  game/Investigation.js    Mistérios em sequência: confissão, prova, depoimentos e título do jogador
+  game/Mystery.js          Um mistério (culpado, pistas, prova e acusação)
+  game/VillageLife.js      Eventos do mundo, clima, estações e festa do dia (ou casamento)
+  game/Weather.js          Transições do clima
+  game/festivals.js        Sorteio e horários da festa do dia
+  game/hearsay.js          Fofoca sobre o jogador (opinião de um NPC puxa a do outro)
+  game/Seeking.js          NPCs que vão atrás do jogador (um por vez, com motivo)
+  game/shop.js             Mercadorias dos NPCs e preço conforme a reputação
+  game/GameClock.js        Relógio do jogo (pausa quando o jogador sai)
+  game/needs.js            Fome, cansaço, sono e humor dos NPCs
+  game/cast.js             Validação do elenco (nomes bem diferentes, um por NPC)
+  game/worldEvents.js      Sorteio do tipo, lugar e envolvidos de cada evento do mundo
+  agents/NpcAgent.js       Diálogo de um NPC com o jogador e sua memória
+  agents/npcTools.js       Ferramentas que o NPC pode chamar (seguir, guiar, pedidos, itens, vender,
+                           confessar, comprar, mudar a relação, aceitar convite...)
+  llm/client.js            Cliente da OpenAI com structured outputs e streaming
+  llm/partialJson.js       Lê o texto da fala de um JSON que ainda está chegando
+  prompts/                 Prompts de geração do mundo, dos NPCs, de diálogo e de eventos
+                           (worldContext.js é o prefixo comum, reaproveitado pelo cache)
+  storage/SessionStore.js  Persistência no Redis, separada por partida (com expiração)
+frontend/src/
+  main.js                  Cena, carregamento e conexão
+  net/                     Websocket único do jogo e tipos de mensagem
+  objects/                 Hero, Npc, Map, Camera, SpeechBubble, Character (sprites/animações)
+  systems/NpcDirector.js   Detecta encontros entre NPCs, reproduz suas conversas e trata a escuta
+                           escondida
+  systems/time.js          Agenda dos NPCs por hora (sono, festa, chuva, refeições) e iluminação
+  systems/WeatherEffects.js Chuva, neve, neblina, céu nublado, relâmpagos e o tom de cada estação
+  systems/activity.js      Regras do minijogo de pesca e coleta
+  systems/FightManager.js  Lutas em tempo real (ataque, esquiva, cura, IA dos oponentes, bandidos)
+  systems/combat.js        Regras das lutas: perfis por classe e profissão, alcance, equipamento
+  audio/sound.js           Sons sintetizados com Web Audio (ambiente, passos, vozes, avisos)
+  state/                   Estado do jogador, do mundo (clima e festa) e conversas ouvidas
+  hud/                     Chat, diário (J), minimapa (N), nome do lugar, pesca/coleta (F),
+                           notificações, relógio, conversas ouvidas e faixa de status
+  utils/overlay.js         Balões e ícones desenhados por cima das árvores
+  levels/places.js         Lugares do mapa usados nas rotinas, encontros e prompts
+  utils/collisionGrid.js   Colisão por tiles
+  utils/findShortestPath.js, pathfinding.js, pathfindingWorker.js
+                           A* executado em um Web Worker compartilhado
+```
+
+O design da interação entre NPCs está descrito em [docs/npc-interactions.md](docs/npc-interactions.md).
 
 ## Créditos
 
