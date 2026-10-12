@@ -1,19 +1,21 @@
-import redis from "redis";
-import env from "../env.json" assert { type: "json" };
+import { createClient } from "redis";
+import { config } from "../config.js";
 
-export const database = redis.createClient({
-  host: env.REDIS_HOST,
-  port: env.REDIS_PORT,
-});
+export async function connectDatabase() {
+  const database = createClient({
+    socket: { host: config.REDIS_HOST, port: config.REDIS_PORT },
+  });
 
-database.on("connect", () => {
+  database.on("error", (err) => {
+    console.error("Erro do Redis:", err);
+  });
+
+  await database.connect();
   console.log("Conectado ao Redis!");
 
-  database.flushDb();
-});
+  if (config.RESET_DB_ON_START) {
+    await database.flushDb();
+  }
 
-database.on("error", (err) => {
-  console.log("Erro do Redis: " + err);
-});
-
-database.connect();
+  return database;
+}
