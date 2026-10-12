@@ -1,16 +1,21 @@
-/* eslint-disable no-undef */
-importScripts("shortestPath.js");
+import { CollisionGrid } from "./collisionGrid.js";
+import { findShortestPath } from "./findShortestPath.js";
 
-self.onmessage = function (e) {
-  const { startPos, endPos, collisionBlocks, width, height } = e.data;
+let grid = null;
 
-  const path = findShortestPath(
-    startPos,
-    endPos,
-    collisionBlocks,
-    width,
-    height
-  );
+self.onmessage = ({ data }) => {
+  if (data.type === "init") {
+    grid = CollisionGrid.fromJSON(data.grid);
+    return;
+  }
 
-  self.postMessage(path);
+  const { id, start, end, width, height } = data;
+
+  const path = grid
+    ? findShortestPath(start, end, (x, y) =>
+        grid.isBlocked(x, y, width, height),
+      )
+    : null;
+
+  self.postMessage({ id, path });
 };

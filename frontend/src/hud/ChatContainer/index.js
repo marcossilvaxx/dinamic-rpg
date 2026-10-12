@@ -1,103 +1,169 @@
 class ChatContainer {
   constructor(root = "game-container") {
     this.root = root;
-    this.rootElement = null;
     this.element = null;
     this.messagesContainer = null;
-    this.messages = [];
+    this.input = null;
     this.onSubmit = null;
+    this.agentId = null;
+    this.typingElement = null;
+    // Message of the NPC being written (streamed): { author, element }
+    this.streaming = null;
   }
 
-  addMessage(message) {
-    const messageElement = `<p class="message-text"><strong>${message.author}:</strong> ${message.content}</p>`;
-    this.messages.push(messageElement);
+  get isOpen() {
+    return this.agentId !== null;
+  }
 
-    this.messagesContainer.innerHTML = this.messages.join("\n");
+  createMessage(author, content) {
+    // Built with textContent so player/LLM text is never parsed as HTML.
+    const messageElement = document.createElement("p");
+    messageElement.className = "message-text";
+
+    const authorElement = document.createElement("strong");
+    authorElement.textContent = `${author}:`;
+
+    messageElement.append(authorElement, ` ${content}`);
+    this.messagesContainer.insertBefore(messageElement, this.typingElement);
     this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+
+    return messageElement;
   }
 
-  handleEnterPress(event) {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      const value = event.target.value;
-      this.handleSubmit(value);
-    }
-  }
-
-  handleSubmit(value) {
-    this.addMessage({ author: "Player", content: value });
-    document.getElementById("user-input").value = "";
-
-    if (this.onSubmit) {
-      this.onSubmit(value);
-    }
-  }
-
-  init() {
-    if (this.element) {
+  addMessage({ author, content }) {
+    if (!content) {
       return;
     }
 
-    this.rootElement = document.getElementById(this.root);
+    // The final text replaces the message that was being streamed
+    if (this.streaming?.author === author) {
+      this.streaming.element.lastChild.textContent = ` ${content}`;
+      this.streaming.element.classList.remove("streaming");
+      this.streaming = null;
+      return;
+    }
 
-    this.element = document.createElement("div");
-    this.messagesContainer = document.createElement("div");
-
-    this.element.className = "chat-container";
-    this.messagesContainer.className = "messages-container";
-
-    this.rootElement.appendChild(this.element);
-    this.element.appendChild(this.messagesContainer);
-
-    this.element.insertAdjacentHTML(
-      "beforeend",
-      `
-      <form id="chat-input">
-        <textarea id="user-input"></textarea>
-        <button type="submit">Send</button>
-      </form>
-    `
-    );
-
-    document
-      .getElementById("user-input")
-      .addEventListener("keydown", (event) => {
-        event.stopPropagation();
-
-        this.handleEnterPress(event);
-      }); // lembrar de remover o event listener depois
-
-    document
-      .getElementById("chat-input")
-      .addEventListener("submit", (event) => {
-        event.stopPropagation();
-        event.preventDefault();
-
-        const value = event.target[0].value;
-
-        this.handleSubmit(value);
-      });
+    this.createMessage(author, content);
   }
 
-  show({ onSubmit }) {
-    this.onSubmit = onSubmit;
+  /** Shows the answer of the NPC while it is written. */
+  streamMessage({ author, content }) {
+    if (!this.messagesContainer || !content) {
+      return;
+    }
 
-    if (this.element) {
-      this.element.style.display = "flex";
-    } else {
+    this.setTyping(null);
+
+    if (this.streaming?.author !== author) {
+      const element = this.createMessage(author, content);
+      element.classList.add("streaming");
+      this.streaming = { author, element };
+      return;
+    }
+
+    this.streaming.element.lastChild.textContent = ` ${content}`;
+    this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+  }
+
+  /** Shows "<name> está digitando..." (null hides it). */
+  setTyping(name) {
+    if (!this.messagesContainer) {
+      return;
+    }
+
+    if (!name) {
+      this.typingElement?.remove();
+      this.typingElement = null;
+      return;
+    }
+
+    if (!this.typingElement) {
+      this.typingElement = document.createElement("p");
+      this.typingElement.className = "message-text typing";
+    }
+
+    this.typingElement.textContent = `${name} está digitando...`;
+    this.messagesContainer.appendChild(this.typingElement);
+    this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+  }
+
+  handleSubmit() {
+    const value = this.input.value.trim();
+    this.input.value = "";
+
+    if (!value) {
+      return;
+    }
+
+    this.addMessage({ author: "Player", content: value });
+    this.onSubmit?.(value);
+  }
+
+  init() {
+    this.element = document.createElement("div");
+    this.element.className = "chat-container";
+
+    this.messagesContainer = document.createElement("div");
+    this.messagesContainer.className = "messages-container";
+
+    const form = document.createElement("form");
+    form.id = "chat-input";
+
+    this.input = document.createElement("textarea");
+    this.input.id = "user-input";
+
+    const button = document.createElement("button");
+    button.type = "submit";
+    button.textContent = "Send";
+
+    form.append(this.input, button);
+    this.element.append(this.messagesContainer, form);
+    document.getElementById(this.root).appendChild(this.element);
+
+    // Keys typed in the chat must not move the hero
+    this.input.addEventListener("keydown", (event) => {
+      event.stopPropagation();
+
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        this.handleSubmit();
+      }
+
+      // Leave the input so Q (close chat) and movement keys work again
+      if (event.key === "Escape") {
+        this.input.blur();
+      }
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      this.handleSubmit();
+    });
+  }
+
+  show({ agentId, onSubmit }) {
+    if (!this.element) {
       this.init();
     }
 
-    this.messages = [];
-    this.messagesContainer.innerHTML = "";
+    this.agentId = agentId;
+    this.onSubmit = onSubmit;
+    this.typingElement = null;
+    this.streaming = null;
+    this.messagesContainer.replaceChildren();
+    this.element.style.display = "flex";
+    this.input.focus();
   }
 
   hide() {
+    this.agentId = null;
+    this.onSubmit = null;
+    this.streaming = null;
+    this.setTyping(null);
+
     if (this.element) {
       this.element.style.display = "none";
-
-      this.messages = [];
-      this.messagesContainer.innerHTML = "";
+      this.messagesContainer.replaceChildren();
     }
   }
 }

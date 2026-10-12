@@ -6,7 +6,11 @@ export const RIGHT = "RIGHT";
 export class Input {
   constructor() {
     this.heldDirections = [];
-    this.keys = {};
+    this.pressedKeys = {};
+    // While a window (e.g. the journal) is open the game ignores the keys
+    this.blocked = false;
+    // The game is paused
+    this.paused = false;
 
     document.addEventListener("keydown", (e) => {
       if (e.code === "ArrowUp" || e.code === "KeyW") {
@@ -22,7 +26,7 @@ export class Input {
         this.onArrowPressed(RIGHT);
       }
 
-      this.keys[e.key.toLocaleLowerCase()] = true;
+      this.pressedKeys[e.key.toLocaleLowerCase()] = true;
     });
 
     document.addEventListener("keyup", (e) => {
@@ -39,12 +43,16 @@ export class Input {
         this.onArrowReleased(RIGHT);
       }
 
-      this.keys[e.key.toLocaleLowerCase()] = false;
+      this.pressedKeys[e.key.toLocaleLowerCase()] = false;
     });
   }
 
   get direction() {
-    return this.heldDirections[0];
+    return this.blocked || this.paused ? undefined : this.heldDirections[0];
+  }
+
+  get keys() {
+    return this.blocked || this.paused ? {} : this.pressedKeys;
   }
 
   onArrowPressed(direction) {

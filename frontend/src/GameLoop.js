@@ -16,19 +16,21 @@ export class GameLoop {
       return;
     }
 
+    // Scheduled first so an error in a frame is logged without freezing the
+    // whole game
+    this.rafId = requestAnimationFrame(this.mainLoop);
+
     let deltaTime = timestamp - this.lastFrameTime;
     this.lastFrameTime = timestamp;
 
     this.accumulatedTime += deltaTime;
 
     while (this.accumulatedTime >= this.timeStep) {
-      this.update(this.timeStep);
       this.accumulatedTime -= this.timeStep;
+      this.update(this.timeStep);
     }
 
     this.render();
-
-    this.rafId = requestAnimationFrame(this.mainLoop);
   };
 
   start() {

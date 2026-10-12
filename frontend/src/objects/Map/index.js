@@ -1,4 +1,5 @@
 import { GameObject } from "../../GameObject";
+import { CollisionGrid } from "../../utils/collisionGrid";
 import { Sprite } from "../../Sprite";
 import { Vector2 } from "../../utils/Vector2";
 import { CollisionBlock } from "../CollisionBlock";
@@ -20,7 +21,6 @@ export class Map extends GameObject {
     this.height = height;
     this.collisionGrid = collisionGrid;
     this.tileSize = tileSize;
-    this.collisionBlocks = [];
 
     this.foregroundSprite = new Sprite({
       resource: this.foregroundResource,
@@ -35,6 +35,8 @@ export class Map extends GameObject {
     this.addChild(sprite);
 
     if (this.collisionGrid) {
+      this.collision = new CollisionGrid(this.collisionGrid, this.tileSize);
+      // Blocks are only drawn in debug mode, collisions use `this.collision`
       this.generateCollisionBlocks();
     }
   }
@@ -53,7 +55,6 @@ export class Map extends GameObject {
             height: this.tileSize,
           });
           this.addChild(block);
-          this.collisionBlocks.push(block);
         }
       });
     });
