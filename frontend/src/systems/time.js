@@ -95,14 +95,14 @@ const mix = (from, to, t) => from + (to - from) * t;
 
 // Color and opacity of the darkness over the map, per hour
 const LIGHT_KEYS = [
-  { hour: 0, color: [10, 15, 50], alpha: 0.5 },
-  { hour: 5, color: [10, 15, 50], alpha: 0.5 },
+  { hour: 0, color: [10, 15, 50], alpha: 0.62 },
+  { hour: 5, color: [10, 15, 50], alpha: 0.6 },
   { hour: 7, color: [255, 170, 90], alpha: 0.12 },
   { hour: 9, color: [0, 0, 0], alpha: 0 },
   { hour: 17, color: [0, 0, 0], alpha: 0 },
   { hour: 19, color: [255, 120, 60], alpha: 0.18 },
-  { hour: 21, color: [10, 15, 50], alpha: 0.45 },
-  { hour: 24, color: [10, 15, 50], alpha: 0.5 },
+  { hour: 21, color: [10, 15, 50], alpha: 0.55 },
+  { hour: 24, color: [10, 15, 50], alpha: 0.62 },
 ];
 
 /** @returns {{color: number[], alpha: number}} */

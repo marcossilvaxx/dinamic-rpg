@@ -202,6 +202,7 @@ const HEALING = [
   [/po[cç][aã]o|elixir|t[oô]nico|potion/i, 60],
   [/rem[eé]dio|unguento|bandagem|medicine/i, 45],
   [/erva|herb|mel/i, 25],
+  [/[aá]gua|water/i, 8],
   [
     /p[aã]o|peixe|carne|fruta|queijo|ma[cç][aã]|cogumelo|castanha|sopa|bread|fish/i,
     12,

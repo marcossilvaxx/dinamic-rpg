@@ -24,6 +24,13 @@ export class CollisionGrid {
     return { rows: this.rows, tileSize: this.tileSize };
   }
 
+  /** Marks tiles as blocked (props added over the map). */
+  block(tiles) {
+    for (const [column, row] of tiles) {
+      if (this.rows[row]?.[column] !== undefined) this.rows[row][column] = 1;
+    }
+  }
+
   /**
    * Whether a `width` x `height` hitbox at (x, y) overlaps a blocked tile or
    * leaves the map.

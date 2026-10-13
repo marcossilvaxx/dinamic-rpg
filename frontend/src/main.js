@@ -33,12 +33,13 @@ import { worldState } from "./state/worldState";
 import { gameClock } from "./systems/GameClock";
 import { FightManager } from "./systems/FightManager";
 import { NpcDirector } from "./systems/NpcDirector";
-import { lightingAt, scheduleFor } from "./systems/time";
+import { scheduleFor } from "./systems/time";
 import { WeatherEffects } from "./systems/WeatherEffects";
 import { Vector2 } from "./utils/Vector2";
 import { parse2D } from "./utils/grid";
 import { overlayLayer } from "./utils/overlay";
 import { pathfinder } from "./utils/pathfinding";
+import { Village } from "./world/Village";
 
 const canvas = document.querySelector("#game-canvas");
 
@@ -75,6 +76,8 @@ mainScene.collision = map1.collision;
 mainScene.overhearLog = overhearLog;
 mainScene.debugMode = false;
 
+// Lamps, the windmill, the well... can't be walked through
+Village.blockProps(map1.collision);
 pathfinder.init(map1.collision);
 
 // Blocking overlay, only for connection errors. Loading progress is shown in
@@ -107,6 +110,17 @@ const setStatus = (text, { retry = false } = {}) => {
 
 const npcs = new globalThis.Map();
 mainScene.npcs = npcs;
+
+// The living map: seasons, snow and mud, lights, animals, props and the
+// objects the player uses with F
+const village = new Village({
+  scene: mainScene,
+  map: map1,
+  hero,
+  npcs,
+  collision: map1.collision,
+  screen: { width: canvas.width, height: canvas.height },
+});
 
 // NPCs make each other talk when they meet
 mainScene.addChild(new NpcDirector({ npcs, player: hero, overhearLog }));
@@ -228,7 +242,10 @@ const npcSpawnPosition = (center = NPC_SPAWN) => {
 };
 
 // Fishing and gathering (F near the pier and the fields)
-const activityHud = new ActivityHud({ input: mainScene.input });
+const activityHud = new ActivityHud({
+  input: mainScene.input,
+  getInteraction: (position) => village.interactionAt(position),
+});
 
 // Knocked out in a fight: the screen goes dark and the hero wakes up in the
 // tavern (the server takes some coins)
@@ -456,6 +473,7 @@ const update = (delta) => {
   }
 
   mainScene.stepEntry(delta, mainScene);
+  village.step(delta);
   weatherEffects.step(delta);
   sound.updateAmbience(delta, {
     hour: gameClock.hour,
@@ -482,16 +500,13 @@ const draw = () => {
 
   mainScene.draw(ctx, 0, 0);
   map1.foreground.draw(ctx, 0, 0);
+  village.drawTop(ctx); // Snow on the roofs, smoke, birds...
   overlayLayer.draw(ctx); // Speech bubbles and icons, over the trees
 
   ctx.restore();
 
-  // Day and night
-  const { color, alpha } = lightingAt(gameClock.minuteOfDay);
-  if (alpha > 0) {
-    ctx.fillStyle = `rgba(${color.join(", ")}, ${alpha})`;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
+  // Day and night, with the lights of the village
+  village.drawLighting(ctx, camera);
 
   weatherEffects.draw(ctx);
 
@@ -512,6 +527,7 @@ if (import.meta.env.DEV) {
     fights,
     gameSocket,
     updateBandits,
+    village,
   };
 }
 

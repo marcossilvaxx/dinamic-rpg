@@ -13,13 +13,21 @@ const RESULT_MS = 1800;
 
 /**
  * "F - Pescar" near the pier (or "F - Colher" in the fields) and the timing
- * minigame: press F when the needle is in the green zone.
+ * minigame: press F when the needle is in the green zone. F also uses the
+ * objects of the map (well, chests, doors...): `getInteraction` gives the one
+ * close to the player, which goes before the activity.
  */
 export class ActivityHud {
-  /** @param {{ input: import("../../Input").Input }} options */
-  constructor({ input, root = "game-container" }) {
+  /**
+   * @param {object} options
+   * @param {import("../../Input").Input} options.input
+   * @param {(position) => {label: string, run: () => void} | null} [options.getInteraction]
+   */
+  constructor({ input, getInteraction = () => null, root = "game-container" }) {
     this.input = input;
     this.root = root;
+    this.getInteraction = getInteraction;
+    this.interaction = null; // Object of the map close to the player
     this.kind = null; // Activity available where the player is
     this.game = null; // { kind, position, direction, zoneStart, state }
     this.lastTime = 0;
@@ -45,7 +53,9 @@ export class ActivityHud {
 
       if (event.code === "KeyF" && !event.repeat) {
         if (this.game?.state === "playing") this.stop();
-        else if (!this.game && this.kind && !this.input.blocked) this.start();
+        else if (!this.game && !this.input.blocked && this.interaction) {
+          this.interaction.run();
+        } else if (!this.game && this.kind && !this.input.blocked) this.start();
       } else if (event.key === "Escape" && this.game) {
         this.close();
       }
@@ -61,12 +71,14 @@ export class ActivityHud {
    * @param {boolean} hidden Chat or journal open.
    */
   update(position, hidden) {
+    this.interaction = hidden ? null : this.getInteraction(position);
     this.kind = hidden ? null : activityAt(position);
 
-    const showPrompt = Boolean(this.kind) && !this.game;
+    const label = this.interaction?.label ?? ACTIVITIES[this.kind]?.label;
+    const showPrompt = Boolean(label) && !this.game;
     this.prompt.style.display = showPrompt ? "block" : "none";
     if (showPrompt) {
-      this.prompt.textContent = `F - ${ACTIVITIES[this.kind].label}`;
+      this.prompt.textContent = `F - ${label}`;
     }
   }
 

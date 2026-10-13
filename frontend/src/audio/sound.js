@@ -228,6 +228,92 @@ class Sound {
     );
   }
 
+  /** Sounds of the map: animals and things the player uses. */
+  cluck() {
+    [0, 0.12, 0.2].forEach((delay) =>
+      this.tone({
+        frequency: randomBetween(700, 900),
+        slideTo: 500,
+        duration: 0.07,
+        type: "square",
+        volume: 0.025,
+        delay,
+      }),
+    );
+  }
+
+  meow() {
+    this.tone({
+      frequency: 600,
+      slideTo: 900,
+      duration: 0.18,
+      type: "triangle",
+      volume: 0.05,
+    });
+    this.tone({
+      frequency: 900,
+      slideTo: 500,
+      duration: 0.25,
+      type: "triangle",
+      volume: 0.05,
+      delay: 0.17,
+    });
+  }
+
+  flap() {
+    for (let i = 0; i < 5; i++) {
+      this.noise({
+        duration: 0.05,
+        volume: 0.05,
+        frequency: 1200,
+        filter: "bandpass",
+        delay: i * 0.07,
+      });
+    }
+  }
+
+  splash() {
+    this.noise({ duration: 0.3, volume: 0.08, frequency: 1500 });
+  }
+
+  knock() {
+    [0, 0.18, 0.36].forEach((delay) =>
+      this.noise({ duration: 0.06, volume: 0.25, frequency: 300, delay }),
+    );
+  }
+
+  chop() {
+    this.noise({
+      duration: 0.08,
+      volume: 0.25,
+      frequency: 700,
+      filter: "bandpass",
+    });
+    this.tone({ frequency: 180, duration: 0.08, type: "square", volume: 0.04 });
+  }
+
+  creak() {
+    this.tone({
+      frequency: 160,
+      slideTo: 260,
+      duration: 0.35,
+      type: "sawtooth",
+      volume: 0.03,
+    });
+  }
+
+  water() {
+    for (let i = 0; i < 4; i++) {
+      this.tone({
+        frequency: randomBetween(500, 1100),
+        slideTo: randomBetween(900, 1500),
+        duration: 0.06,
+        volume: 0.04,
+        delay: i * 0.08,
+      });
+    }
+  }
+
   /** Sounds of the fights. */
   swing() {
     this.noise({

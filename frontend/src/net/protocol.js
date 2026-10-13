@@ -17,6 +17,8 @@ export const CHAT_OPENED = "chat_opened";
 export const MYSTERY_DECISION = "mystery_decision";
 // data: { kind: "fishing" | "gathering", result: "miss" | "hit" | "perfect" }
 export const ACTIVITY = "activity";
+// data: { objectId } (use an object of the map: well, chest, crops...)
+export const INTERACT = "interact";
 // data: { npcId, winner: "player" | "npc" | "none", witnesses: [npcId] }
 export const FIGHT_END = "fight_end";
 // data: { npcId } (the player hit an NPC out of a fight)
@@ -46,6 +48,8 @@ export const NPC_UPDATED = "npc_updated";
 export const NPC_FOLLOW = "npc_follow";
 // data: { ok, message, item?, quantity? }
 export const ACTIVITY_RESULT = "activity_result";
+// data: { objectId, ok, message, item?, quantity? }
+export const INTERACT_RESULT = "interact_result";
 // data: { status }
 export const MYSTERY_DECISION_RESULT = "mystery_decision_result";
 // agentId, data: { reaction: "fight" | "flee", callout, guardId, guardCallout }
@@ -63,7 +67,9 @@ export const NPC_TYPING = "npc_typing";
 // agentId, data: { callout }: the NPC goes after the player to tell something
 export const NPC_SEEKS_PLAYER = "npc_seeks_player";
 // data: { weather, season, seasonLabel, raid: { placeId, until, bandits:
-//         [{ id, name, sprite, leader }] } | null, festival: { day, title, description, placeId, placeName,
+//         [{ id, name, sprite, leader }] } | null, map: { ground, farm,
+//         wrecks, structures, tracks, emptyChests } (game/VillageMap.js),
+//         festival: { day, title, description, placeId, placeName,
 //         startHour, endHour, status } | null }
 export const WORLD_STATE = "world_state";
 // agentId, data: { action, lastWords, placeId?, targetId? }

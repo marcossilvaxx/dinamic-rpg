@@ -134,6 +134,17 @@ O jogo já roda enquanto o mundo é gerado: o mapa aparece na hora, e os morador
 
 **Sonhos:** cada morador tem uma meta pessoal, que avança um pouco por dia e mais rápido quando você ajuda. Quando ele realiza, é notícia, e ele passa a sonhar com outra coisa.
 
+**Mapa vivo:** o mapa muda com o tempo e com a história.
+
+- **Dia e noite:** à noite as janelas das casas acendem (e apagam quando todos dormem), os postes iluminam as ruas, a fogueira do jardim é acesa no começo da noite e você carrega uma lanterna. As chaminés soltam fumaça nas refeições e no frio.
+- **Estações no chão:** flores na primavera, grama seca no verão, folhas caídas e árvores alaranjadas no outono e grama pálida no inverno. A neve acumula aos poucos no chão, nos telhados e nas árvores, e derrete depois, deixando lama.
+- **Chuva:** as estradas viram lama, formam-se poças (com respingos enquanto chove) que secam com o sol, e o moinho gira mais rápido com o vento.
+- **Pegadas:** todos deixam pegadas na neve e na lama. Durante um mistério, pegadas de botas ligam dois lugares da vila: examine-as (**F**) antes que uma tempestade as apague, e a pista vai para o diário.
+- **Plantação:** o campo perto do moinho cresce ao longo do dia (a chuva ajuda, a tempestade estraga e no inverno a terra descansa). Quando amadurece, você pode colher (**F**) e ajudar o fazendeiro. Uma colheita farta barateia a comida, e uma fraca a encarece.
+- **A história no mapa:** a festa do dia monta bandeirinhas, mesa e lanternas (e um arco de flores nos casamentos). Quem realiza um sonho constrói algo perto de casa (barraca, barco, canteiro, oficina ou estandarte). Os bandidos deixam um carrinho virado e caixas quebradas, que você pode consertar (**F**) para ganhar a gratidão da vítima.
+- **Objetos (F):** poço (água fresca, que cura um pouco), pilha de lenha, baús escondidos que se reabastecem a cada dois dias, placas que mostram quem está em cada lugar e portas onde você pode bater para saber se alguém está em casa.
+- **Bichos e água:** galinhas que fogem de você, um gato que te segue depois de um carinho, pássaros que pousam e voam quando alguém se aproxima, gaivotas, borboletas, vaga-lumes nas noites quentes, peixes pulando perto do píer, ondas na costa e o brilho do sol na água.
+
 **Interface:** minimapa no canto (**N** mostra ou esconde), nome do lugar ao entrar nele e sons sintetizados: pássaros de dia, grilos à noite, chuva, trovões, passos e a "voz" de cada personagem. **M** liga ou desliga o som. **P** pausa e despausa o jogo: o tempo da vila (relógio, clima, festas, prazos e eventos) para.
 
 ## Objetivos e vida da vila
@@ -199,6 +210,8 @@ backend/
   game/Combat.js           Lutas: treino, duelo e briga; testemunhas, guarda, desmaios e ferimentos
   game/combatRules.js      Coragem e reação dos NPCs, guarda da vila e itens que curam
   game/Bandits.js          Ataques de bandidos e o título de protetor da vila
+  game/VillageMap.js       Mapa vivo: plantação e colheita, neve e lama, destroços, construções,
+                           pegadas do mistério e objetos (poço, lenha, baús)
   game/seasons.js          Estações do ano
   game/NpcConversation.js  Geração da conversa entre dois NPCs
   game/PlayerState.js      Reputação, inventário, pedidos (com prazo), pessoas conhecidas e notícias
@@ -239,6 +252,14 @@ frontend/src/
                            notificações, relógio, conversas ouvidas e faixa de status
   utils/overlay.js         Balões e ícones desenhados por cima das árvores
   levels/places.js         Lugares do mapa usados nas rotinas, encontros e prompts
+  levels/decor.js          Posições dos objetos do mapa (postes, moinho, poço, baús, plantação...)
+  world/Village.js         Mapa vivo: estado do servidor, pegadas, luzes e interações (F)
+  world/terrain.js         Lê os pixels do mapa e pré-desenha neve, outono, lama, espuma...
+  world/GroundLayer.js     Chão: estações, neve, poças, água, plantação e pegadas
+  world/Props.js, sprites.js Objetos e construções desenhados em pixel art (sem imagens)
+  world/Ambient.js         Bichos, fumaça, folhas, peixes, borboletas e vaga-lumes
+  world/Lighting.js        Escuridão da noite com as luzes da vila
+  world/rules.js           Regras puras (horários das luzes, fumaça, vento, bichos)
   utils/collisionGrid.js   Colisão por tiles
   utils/findShortestPath.js, pathfinding.js, pathfindingWorker.js
                            A* executado em um Web Worker compartilhado
