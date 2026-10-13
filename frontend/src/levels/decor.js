@@ -1,4 +1,4 @@
-// Things added over the village map (map.png): lamps, the windmill, the farm
+// Things added over the village map (tiled/game-test-map.tmx): lamps, the windmill, the farm
 // field, the well, chests... and where the buildings of the map have their
 // windows, doors and chimneys. Positions are in map pixels (tile = 12 px).
 // Blocking props occupy whole tiles (`tiles`), checked by

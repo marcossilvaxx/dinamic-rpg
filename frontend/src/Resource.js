@@ -2,8 +2,6 @@ class Resource {
   constructor() {
     this.toLoad = {
       shadow: "/sprites/shadow.png",
-      map: "/sprites/map.png",
-      foreground: "/sprites/foreground-map.png",
       warriorM: "/sprites/characters/warrior_m.png",
       warriorF: "/sprites/characters/warrior_f.png",
       mageM: "/sprites/characters/mage_m.png",

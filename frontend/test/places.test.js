@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mapCollisions } from "../src/levels/map.js";
+import { MAPS } from "../src/levels/maps.js";
+
+const mapCollisions = MAPS.village.collisions;
 import { PLACES, nearestPlace } from "../src/levels/places.js";
 import { CollisionGrid } from "../src/utils/collisionGrid.js";
 import { findShortestPath } from "../src/utils/findShortestPath.js";

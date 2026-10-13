@@ -1,5 +1,4 @@
 import { PLACES } from "../../levels/places";
-import { resources } from "../../Resource";
 import { worldState } from "../../state/worldState";
 
 const SCALE = 1 / 4;
@@ -16,16 +15,23 @@ export class Minimap {
    * @param {number} options.mapHeight
    * @param {() => {x: number, y: number}} options.getPlayer
    * @param {() => import("../../objects/Npc").Npc[]} options.getNpcs
+   * @param {{image: CanvasImageSource, isLoaded: boolean}} options.mapImage
+   * @param {(npc) => {x: number, y: number}} [options.positionOf] Where to
+   *   show an NPC (inside a building: at its door).
    */
   constructor({
     mapWidth,
     mapHeight,
     getPlayer,
     getNpcs,
+    mapImage,
+    positionOf = (npc) => npc.position,
     root = "game-container",
   }) {
     this.getPlayer = getPlayer;
     this.getNpcs = getNpcs;
+    this.mapImage = mapImage;
+    this.positionOf = positionOf;
     this.visible = true;
     this.timeSinceDraw = Infinity;
 
@@ -70,7 +76,7 @@ export class Minimap {
 
   draw() {
     const { ctx, canvas } = this;
-    const map = resources.images.map;
+    const map = this.mapImage;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -99,7 +105,7 @@ export class Minimap {
     ctx.textAlign = "start";
 
     this.getNpcs().forEach((npc) => {
-      const { x, y } = npc.position;
+      const { x, y } = this.positionOf(npc);
       if (npc.isSeekingPlayer) {
         this.dot(x, y, 4, "#e53935", "#fff");
       } else {

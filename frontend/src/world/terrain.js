@@ -1,4 +1,4 @@
-// Reads the pixels of the map images (map.png and foreground-map.png) to
+// Reads the pixels of the village map (drawn from the Tiled map) to
 // know where there is grass, sand, water, roofs and trees, and pre-renders
 // the layers drawn over them: snow, autumn colors, flowers, mud, the foam of
 // the coast... They are drawn every frame with some opacity (season, snow

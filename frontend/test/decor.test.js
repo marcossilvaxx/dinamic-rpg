@@ -7,7 +7,9 @@ import {
   FARM_PLOTS,
   STRUCTURE_SPOTS,
 } from "../src/levels/decor.js";
-import { mapCollisions } from "../src/levels/map.js";
+import { MAPS } from "../src/levels/maps.js";
+
+const mapCollisions = MAPS.village.collisions;
 import { PLACES } from "../src/levels/places.js";
 import { CollisionGrid } from "../src/utils/collisionGrid.js";
 import { findShortestPath } from "../src/utils/findShortestPath.js";
