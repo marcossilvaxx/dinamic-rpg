@@ -1,6 +1,8 @@
 import { sound } from "../audio/sound";
+import { notifications } from "../hud/Notifications";
 import { placeBanner } from "../hud/PlaceBanner";
 import { BUILDINGS } from "../levels/decor";
+import { PLACES_BY_ID } from "../levels/places";
 import {
   INTERIORS,
   INTERIORS_BY_ID,
@@ -10,7 +12,10 @@ import {
   interiorPoint,
 } from "../levels/world";
 import { Map as MapObject } from "../objects/Map";
+import * as protocol from "../net/protocol";
+import { gameSocket } from "../net/socket";
 import { playerState } from "../state/playerState";
+import { worldState } from "../state/worldState";
 import { gameClock } from "../systems/GameClock";
 import { Vector2 } from "../utils/Vector2";
 import { Lighting } from "./Lighting";
@@ -36,28 +41,44 @@ export class Interiors {
    * @param {Map<number, import("../objects/Npc").Npc>} options.npcs
    * @param {import("../objects/Camera").Camera} options.camera
    * @param {import("../utils/collisionGrid").CollisionGrid} options.collision
+   * @param {import("../Input").Input} options.input
    * @param {{width: number, height: number}} options.screen
    */
-  constructor({ scene, hero, npcs, camera, collision, screen }) {
+  constructor({ scene, hero, npcs, camera, collision, input, screen }) {
     this.hero = hero;
+    this.input = input;
     this.npcs = npcs;
     this.camera = camera;
     this.collision = collision;
     this.current = null; // Interior where the player is
     this.lighting = new Lighting(screen);
 
-    this.rooms = INTERIORS.map((interior) => {
-      const tileMap = new TileMap(interior.map);
-      const map = new MapObject({
-        resource: tileMap.background,
-        foregroundResource: tileMap.foreground,
-        width: interior.width,
-        height: interior.height,
-        position: new Vector2(interior.origin.x, interior.origin.y),
-      });
-      scene.addChild(map);
-      return { interior, tileMap, map };
+    // The screen goes dark while the player sleeps
+    this.restScreen = document.createElement("div");
+    this.restScreen.className = "knockout-screen";
+    this.restScreen.textContent = "Descansando...";
+    document.getElementById("game-container")?.appendChild(this.restScreen);
+    gameSocket.on(protocol.INTERACT_RESULT, ({ data }) => {
+      if (data.rested) this.wakeUp();
     });
+
+    this.scene = scene;
+    this.rooms = [];
+    INTERIORS.forEach((interior) => this.addRoom(interior));
+  }
+
+  /** Draws an interior (also the ones built later on the lots). */
+  addRoom(interior) {
+    const tileMap = new TileMap(interior.map);
+    const map = new MapObject({
+      resource: tileMap.background,
+      foregroundResource: tileMap.foreground,
+      width: interior.width,
+      height: interior.height,
+      position: new Vector2(interior.origin.x, interior.origin.y),
+    });
+    this.scene.addChild(map);
+    this.rooms.push({ interior, tileMap, map });
   }
 
   get isInside() {
@@ -66,6 +87,12 @@ export class Interiors {
 
   doorOf(placeId) {
     return BUILDINGS.find((building) => building.placeId === placeId)?.door;
+  }
+
+  isBurned(placeId) {
+    return (worldState.state.terrain?.burned ?? []).some(
+      (fire) => fire.placeId === placeId,
+    );
   }
 
   /** Villagers inside a building (or living there). */
@@ -79,6 +106,7 @@ export class Interiors {
   access(placeId) {
     const interior = INTERIORS_BY_PLACE[placeId];
     if (!interior) return { open: false, reason: null };
+    if (this.isBurned(placeId)) return { open: false, reason: "burned" };
 
     const inside = this.peopleInside(interior.id);
     const residents = [...this.npcs.values()].filter(
@@ -95,6 +123,7 @@ export class Interiors {
       awakeInside: inside.filter((npc) => !npc.isSleeping).length,
       asleepInside: inside.filter((npc) => npc.isSleeping).length,
       friend,
+      workplace: PLACES_BY_ID[placeId]?.kind === "work",
     });
   }
 
@@ -197,10 +226,14 @@ export class Interiors {
         npc.knockedOut ||
         npc.isTalking ||
         npc.npcConversation ||
-        npc.followTarget === this.hero ||
-        npc.guide ||
-        npc.seeking
+        npc.guide
       ) {
+        continue;
+      }
+
+      // Going after the player: through the door they are behind
+      if (npc.followTarget === this.hero || npc.seeking) {
+        this.chasePlayer(npc);
         continue;
       }
 
@@ -208,13 +241,163 @@ export class Interiors {
 
       if (npc.indoor) {
         const interior = INTERIORS_BY_ID[npc.indoor.interiorId];
-        if (place?.id !== interior.placeId) this.moveOut(npc, interior);
+        if (place?.id !== interior.placeId || this.isBurned(interior.placeId)) {
+          this.moveOut(npc, interior);
+        }
         continue;
       }
 
       const interior = place && INTERIORS_BY_PLACE[place.id];
-      if (interior && npc.isAt(place)) this.moveIn(npc, interior);
+      if (interior && npc.isAt(place) && !this.isBurned(interior.placeId)) {
+        this.moveIn(npc, interior);
+      }
     }
+  }
+
+  /** An NPC going after the player goes in or out where the player is. */
+  chasePlayer(npc) {
+    const playerInterior = this.current;
+    const npcInterior = npc.indoor && INTERIORS_BY_ID[npc.indoor.interiorId];
+
+    if (playerInterior?.id === npcInterior?.id) return;
+
+    const near = (point) =>
+      Math.hypot(npc.position.x - point.x, npc.position.y - point.y) <= 24;
+
+    if (npcInterior) {
+      const exit = interiorPoint(npcInterior, "exit");
+      if (near({ x: exit.x + 8, y: exit.y - 8 }))
+        this.moveOut(npc, npcInterior);
+    } else if (playerInterior) {
+      const door = this.doorOf(playerInterior.placeId);
+      if (near({ x: door.x - 8, y: door.y + 4 }))
+        this.moveIn(npc, playerInterior);
+    }
+  }
+
+  /**
+   * Where an NPC following the player walks to: the player, or the door
+   * between them when one is inside and the other is not.
+   */
+  resolveFollowTarget(npc) {
+    if (npc.followTarget !== this.hero) return null;
+
+    const playerInterior = this.current;
+    const npcInterior = npc.indoor && INTERIORS_BY_ID[npc.indoor.interiorId];
+
+    if (playerInterior?.id === npcInterior?.id) return null;
+
+    if (npcInterior) {
+      const exit = interiorPoint(npcInterior, "exit");
+      return this.waypoint(exit.x + 8, exit.y - 8);
+    }
+
+    const door = this.doorOf(playerInterior.placeId);
+    return this.waypoint(door.x - 8, door.y + 4);
+  }
+
+  // A point to follow (like a character standing still on it)
+  waypoint(x, y) {
+    return {
+      position: new Vector2(x, y),
+      width: 0,
+      height: 0,
+      facingDirection: "DOWN",
+    };
+  }
+
+  /** Things to do inside (F): leave, eat at the tavern, see wares, rest. */
+  interactionAt(position) {
+    const interior = this.current;
+    if (!interior) return null;
+
+    if (this.isAtExit(position, 14)) {
+      return { label: "Sair", run: () => this.exit() };
+    }
+
+    const feet = { x: position.x + 8, y: position.y + 10 };
+    const near = ({ x, y }) => Math.hypot(feet.x - x, feet.y - y) <= 18;
+    const points = Object.keys(interior.map.points).map((name) =>
+      interiorPoint(interior, name),
+    );
+    const counter = points.find((point) => point.kind === "counter");
+    const bed = points.find((point) => point.kind === "rest");
+
+    if (counter && near(counter)) {
+      const keeper = this.peopleInside(interior.id).find(
+        (npc) => !npc.isSleeping,
+      );
+
+      if (!keeper) {
+        return {
+          label: "Balcão",
+          run: () => notifications.push("Não há ninguém atendendo no balcão."),
+        };
+      }
+
+      return interior.id === "tavern"
+        ? {
+            label: "Pedir uma refeição (3 moedas)",
+            run: () => {
+              keeper.sayLine("Saindo uma sopa quentinha!", {
+                emotion: "happy",
+              });
+              gameSocket.send(protocol.INTERACT, {
+                data: { objectId: "tavern_meal" },
+              });
+            },
+          }
+        : { label: "Ver as mercadorias", run: () => this.showWares(keeper) };
+    }
+
+    if (bed && near(bed)) {
+      return {
+        label: "Descansar na cama",
+        run: () => {
+          this.restScreen.classList.add("visible");
+          this.input.blocked = true;
+          gameSocket.send(protocol.INTERACT, { data: { objectId: "rest" } });
+        },
+      };
+    }
+
+    return null;
+  }
+
+  /** What the shopkeepers sell (they sell it in the chat). */
+  showWares(keeper) {
+    const shops = playerState.state?.shops ?? [];
+    const sellers = [keeper, ...this.peopleInside(this.current.id)]
+      .map((npc) => ({ npc, shop: shops.find((s) => s.npcId === npc.id) }))
+      .filter(({ shop }) => shop?.wares.length);
+    const seller = sellers[0];
+
+    if (!seller) {
+      notifications.push(`${keeper.data.name} não tem nada à venda agora.`);
+      return;
+    }
+
+    const wares = seller.shop.wares
+      .map(
+        ({ item, price, stock }) =>
+          `${item} (${price} moedas${stock ? `, ${stock} em estoque` : ", esgotado"})`,
+      )
+      .join(", ");
+    notifications.push(
+      `${seller.npc.data.name} vende: ${wares}. Fale com ${seller.npc.data.name} (E) para comprar.`,
+    );
+    seller.npc.sayLine("Dê uma olhada!", { emotion: "happy" });
+  }
+
+  /** Back from resting: full life and a new day (or two hours later). */
+  wakeUp() {
+    const combat = this.hero.combat;
+    if (combat) combat.hp = combat.maxHp;
+
+    setTimeout(() => {
+      this.restScreen.classList.remove("visible");
+      this.input.blocked = false;
+    }, 1200);
   }
 
   /** Where the NPC stays inside: its counter, its bed or a table. */

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="14" height="9" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="7">
+<map version="1.10" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="14" height="9" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="8">
  <tileset firstgid="1" source="../6_floors.tsx"/>
  <tileset firstgid="253" source="../indoors-tileset.tsx"/>
  <tileset firstgid="693" source="../4_buildings.tsx"/>
@@ -93,10 +93,13 @@
   <object id="4" name="shelves" type="spot" x="144" y="68">
    <point/>
   </object>
-  <object id="5" name="center" type="center" x="96" y="72">
+  <object id="5" name="counter" type="counter" x="68" y="116">
    <point/>
   </object>
-  <object id="6" name="lamp" type="light" x="112" y="36">
+  <object id="6" name="center" type="center" x="96" y="72">
+   <point/>
+  </object>
+  <object id="7" name="lamp" type="light" x="112" y="36">
    <point/>
   </object>
  </objectgroup>

@@ -72,6 +72,7 @@ test("the field grows, the player harvests it and food prices change", async () 
   assert.ok(session.player.hasItem("cenoura", FARM_PLOTS * 2));
   assert.equal(villageMap.stage, 0, "the field is planted again");
   assert.equal(villageMap.foodPriceFactor(), 0.8, "good harvest");
+  assert.equal(villageMap.toJSON().farm.plots, FARM_PLOTS + 1, "one more plot");
   assert.equal((await session.interact("plot:0")).ok, false);
 });
 
@@ -164,4 +165,34 @@ test("the map is saved with the game", async () => {
     wet: 0.2,
   });
   assert.equal(copy.session.villageMap.toJSON().wrecks.length, 2);
+});
+
+test("resting in a bed passes the time", async () => {
+  const { session, sent } = await recordingSession(fakeLlm());
+  setTime(session, 22 * 60); // Day 1, 22:00
+
+  const night = await session.interact("rest");
+  assert.equal(night.rested, 9 * 60);
+  assert.equal(session.clock.day, 2);
+  assert.equal(session.clock.hour, 7);
+  assert.ok(sent.some((m) => m.type === "clock"));
+
+  const nap = await session.interact("rest");
+  assert.equal(nap.rested, 120);
+  assert.equal(session.clock.hour, 9);
+});
+
+test("the tavern sells a meal", async () => {
+  const { session } = await recordingSession(fakeLlm());
+  const coins = () =>
+    session.player.items.find((i) => i.name === "moedas").quantity;
+  const before = coins();
+
+  const meal = await session.interact("tavern_meal");
+  assert.equal(meal.ok, true);
+  assert.equal(coins(), before - 3);
+  assert.ok(session.player.hasItem("sopa da taverna"));
+
+  session.player.removeItem("moedas", coins());
+  assert.equal((await session.interact("tavern_meal")).ok, false);
 });

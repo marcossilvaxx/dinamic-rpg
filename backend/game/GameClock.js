@@ -61,6 +61,11 @@ export class GameClock {
     return `Dia ${day}, ${formatMinuteOfDay(Math.floor(totalMinutes) % MINUTES_PER_DAY)}`;
   }
 
+  /** Time passes at once (the player slept or rested). */
+  advance(minutes) {
+    this.baseMinutes += Math.max(0, minutes);
+  }
+
   pause() {
     if (this.pausedAt === null) {
       this.pausedAt = this.now();

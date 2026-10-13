@@ -925,10 +925,11 @@ export class Npc extends GameObject {
     }
   }
 
-  updateFollow(delta, { collision }) {
+  updateFollow(delta, { collision, resolveFollowTarget }) {
     this.timeSinceRepath += delta;
 
-    const target = this.followTarget;
+    // The player may be inside a building: the NPC goes to its door first
+    const target = resolveFollowTarget?.(this) ?? this.followTarget;
     const last = this.lastFollowedPosition;
     const targetMoved =
       !last ||

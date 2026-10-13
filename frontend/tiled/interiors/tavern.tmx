@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="16" height="11" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="10">
+<map version="1.10" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="16" height="11" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="11">
  <tileset firstgid="1" source="../6_floors.tsx"/>
  <tileset firstgid="253" source="../indoors-tileset.tsx"/>
  <tileset firstgid="693" source="../4_buildings.tsx"/>
@@ -105,19 +105,22 @@
   <object id="4" name="table_a" type="spot" x="16" y="112">
    <point/>
   </object>
-  <object id="5" name="table_b" type="spot" x="132" y="112">
+  <object id="5" name="counter" type="counter" x="68" y="112">
    <point/>
   </object>
-  <object id="6" name="table_c" type="spot" x="220" y="80">
+  <object id="6" name="table_b" type="spot" x="132" y="112">
    <point/>
   </object>
-  <object id="7" name="center" type="center" x="112" y="112">
+  <object id="7" name="table_c" type="spot" x="220" y="80">
    <point/>
   </object>
-  <object id="8" name="fire" type="light" x="208" y="48">
+  <object id="8" name="center" type="center" x="112" y="112">
    <point/>
   </object>
-  <object id="9" name="lamp" type="light" x="144" y="36">
+  <object id="9" name="fire" type="light" x="208" y="48">
+   <point/>
+  </object>
+  <object id="10" name="lamp" type="light" x="144" y="36">
    <point/>
   </object>
  </objectgroup>
