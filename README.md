@@ -149,7 +149,7 @@ O jogo já roda enquanto o mundo é gerado: o mapa aparece na hora, e os morador
 
 **Interiores:** dá para entrar na taverna, no armazém e nas casas (**F** na porta) e sair pelo tapete. Os moradores entram quando chegam ao lugar da rotina: almoçam e passam a noite na taverna, trabalham no balcão do armazém e dormem em casa. A taverna só fecha de madrugada e o armazém abre de dia. Uma casa só abre se tiver alguém acordado lá dentro, a menos que você seja amigo de quem mora lá. Fechada, a porta diz se estão todos dormindo ou onde estão os moradores. Lá dentro: no balcão da taverna dá para pedir uma sopa (3 moedas), no balcão do armazém ver o que está à venda, e na cama descansar (de noite até as 7h, de dia um cochilo de 2h). Um morador que quer falar com você entra no prédio para te encontrar.
 
-**Uma vila planejada pelo modelo:** ao criar o mundo, o modelo de linguagem decide o que construir nos terrenos vazios do mapa (casas, ferraria, enfermaria, padaria...), dá nome a cada construção e escolhe quem mora ou trabalha nela. As casas aparecem no mapa, ganham interior, e a rotina de cada morador começa pela sua casa ou pelo seu trabalho. Cada partida tem uma vila diferente.
+**Uma vila planejada pelo modelo:** ao criar o mundo, o modelo de linguagem decide o que construir nos terrenos vazios do mapa (casas, ferraria, enfermaria, padaria...), dá nome a cada construção, escolhe quem mora ou trabalha nela, como ela é por fora (tamanho, telhado, paredes, janelas, chaminé, a placa do ofício e o que fica na porta) e que móveis ela tem por dentro. O jogo desenha esses prédios e seus interiores com código (pixel art gerada, sem imagens): cada partida tem uma vila diferente, e a rotina de cada morador começa pela sua casa ou pelo seu trabalho. Os móveis são posicionados sempre deixando passagem até a porta. A página http://localhost:5173/preview.html mostra exemplos de prédios e interiores gerados ao lado dos feitos com tileset.
 
 **O terreno muda:** onde as pessoas andam muito, a grama se gasta e vira uma trilha de terra, que volta a crescer se ninguém passa. Se ninguém impedir os bandidos, eles podem incendiar a casa da vítima: ela fica fechada, com fumaça e fuligem, até os moradores a reconstruírem (2 dias). Você ajuda levando 2 lenhas (**F** na porta) e ganha a gratidão de quem mora lá. Boas colheitas fazem os moradores abrirem novos canteiros (até 9).
 
@@ -285,7 +285,9 @@ frontend/src/
   world/TileMap.js         Desenha um mapa do Tiled tile a tile (e permite trocar tiles)
   world/Interiors.js       Entrar e sair dos prédios, moradores lá dentro, balcões, cama e luz interna
   world/Regions.js         Viagens de barco, floresta, mina e vila vizinha (comércio e acampamento)
-  world/VillageLayout.js   Carimba as casas da vila planejada pelo modelo nos terrenos
+  world/VillageLayout.js   Coloca nos terrenos os prédios da vila planejada pelo modelo
+  world/procedural/        Pixel art gerada por código: casas (houses.js), interiores e
+                           posicionamento dos móveis (rooms.js)
   hud/ChoiceMenu/          Menu de escolhas (viagem e comércio)
   hud/MainMenu/            Menu inicial: continuar a partida salva ou começar um novo jogo
   levels/decor.js          Posições dos objetos do mapa (postes, moinho, poço, baús, plantação...)

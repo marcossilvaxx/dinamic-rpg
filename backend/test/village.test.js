@@ -154,9 +154,22 @@ test("the village plan builds on the empty lots and gives homes", async () => {
         {
           lot: "lot_north",
           kind: "work",
+          trade: "smithy",
           name: "Ferraria",
           description: "A smithy.",
           owners: [1, 99],
+          look: {
+            size: "large",
+            roofStyle: "ridge",
+            roof: "slate",
+            wall: "stone",
+            timber: false,
+            windows: 9,
+            chimney: true,
+            sign: "anvil",
+            decor: ["anvil", "anvil", "dragon", "barrels"],
+          },
+          furniture: ["forge", "anvil", "throne", "workbench"],
         },
         {
           lot: "lot_nowhere",
@@ -193,10 +206,14 @@ test("the village plan builds on the empty lots and gives homes", async () => {
     onVillagePlanned: (built) => layouts.push(built),
   });
 
-  assert.deepEqual(session.villageLayout(), [
-    { id: "lot_north", name: "Ferraria", kind: "work" },
-    { id: "lot_east", name: "Casa", kind: "home" },
-  ]);
+  const [smithy, house] = session.villageLayout();
+  assert.equal(smithy.name, "Ferraria");
+  assert.equal(smithy.trade, "smithy");
+  assert.equal(smithy.look.windows, 3, "at most 3 windows");
+  assert.deepEqual(smithy.look.decor, ["anvil", "barrels"], "known decor once");
+  assert.deepEqual(smithy.furniture, ["forge", "anvil", "workbench"]);
+  assert.equal(house.trade, "home", "default trade");
+  assert.equal(house.look.roof, "red", "default look");
   assert.equal(layouts.length, 1);
   assert.equal(session.getNpc(1).data.routine[0], "lot_north", "works there");
   assert.equal(session.getNpc(2).data.routine[0], "lot_east", "lives there");

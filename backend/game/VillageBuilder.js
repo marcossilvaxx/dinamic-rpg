@@ -14,6 +14,12 @@ import {
   worldHistorySchema,
 } from "../prompts/worldHistoryGeneration.js";
 import {
+  DECOR,
+  FURNITURE,
+  ROOFS,
+  SIGNS,
+  TRADES,
+  WALLS,
   villagePlanPrompt,
   villagePlanSchema,
 } from "../prompts/villagePlan.js";
@@ -66,6 +72,28 @@ export function sanitizeNpcData(content, places, home = null) {
     likes: cleanList(content.likes, MAX_LIKES),
     dislikes: cleanList(content.dislikes, MAX_LIKES),
     goal: content.goal?.trim() ?? "",
+  };
+}
+
+const MAX_FURNITURE = 12;
+
+/** Keeps only what the frontend knows how to draw (see villagePlan.js). */
+export function sanitizeLook(look = {}) {
+  const pick = (value, options, fallback) =>
+    options.includes(value) ? value : fallback;
+
+  return {
+    size: pick(look.size, ["small", "medium", "large"], "medium"),
+    roofStyle: pick(look.roofStyle, ["gable", "ridge"], "gable"),
+    roof: pick(look.roof, ROOFS, "red"),
+    wall: pick(look.wall, WALLS, "plaster"),
+    timber: look.timber === true,
+    windows: Math.min(3, Math.max(1, Math.round(Number(look.windows)) || 2)),
+    chimney: look.chimney !== false,
+    sign: pick(look.sign, SIGNS, "none"),
+    decor: [
+      ...new Set((look.decor ?? []).filter((item) => DECOR.includes(item))),
+    ].slice(0, 3),
   };
 }
 
@@ -217,6 +245,11 @@ export class VillageBuilder {
         building: true,
         lot: true,
         kind: building.kind === "work" ? "work" : "home",
+        trade: TRADES.includes(building.trade) ? building.trade : "home",
+        look: sanitizeLook(building.look),
+        furniture: (building.furniture ?? [])
+          .filter((piece) => FURNITURE.includes(piece))
+          .slice(0, MAX_FURNITURE),
         owners,
       });
     }

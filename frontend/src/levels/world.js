@@ -170,15 +170,20 @@ export function rasterizeArea(rows, { origin, width, height, map }) {
   }
 }
 
-/** Adds the interior of a house built on a lot ({ id, name, kind }). */
-export function addLotInterior({ id, name, kind }) {
-  const map = MAPS[LOT_TEMPLATES[kind] ?? LOT_TEMPLATES.home];
+/**
+ * Adds the interior of a house built on a lot ({ id, name, kind }): a room
+ * drawn with code ({ canvas, map }, see world/procedural/rooms.js) or, without
+ * it, a copy of an interior made in Tiled.
+ */
+export function addLotInterior({ id, name, kind }, room = null) {
+  const map = room?.map ?? MAPS[LOT_TEMPLATES[kind] ?? LOT_TEMPLATES.home];
   const interior = {
     id,
     placeId: id,
     name,
     origin: LOT_INTERIOR_ORIGINS[id],
     map,
+    canvas: room?.canvas ?? null,
     width: map.width * map.tileWidth,
     height: map.height * map.tileHeight,
   };

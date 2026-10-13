@@ -49,8 +49,9 @@ export const NPC_ENCOUNTER = "npc_encounter";
 export const NPC_CONVERSATION_END = "npc_conversation_end";
 
 // Server -> client
-// data: { lots: [{ id, name, kind: "home" | "work" }] } (what was built on
-// the empty lots; sent before the NPCs)
+// data: { lots: [{ id, name, kind: "home" | "work", trade, look, furniture }] }
+// (what was built on the empty lots, how it looks and its furniture; sent
+// before the NPCs)
 export const VILLAGE_LAYOUT = "village_layout";
 // data: { agent, created, total } or { agent, visitor: true }
 export const AGENT_CREATED = "agent_created";

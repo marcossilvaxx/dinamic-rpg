@@ -466,13 +466,13 @@ export class Ambient {
             y: area.y + 20,
             rate: 4 * (1 - fire.progress / 100) + 0.5,
           }
-        : {
+        : chimney && {
             id: placeId,
             x: chimney.x,
             y: chimney.y - 10,
             rate: smokeRate(placeId, hour, season),
           };
-    });
+    }).filter(Boolean);
 
     if (campfireLit(hour, weather)) {
       sources.push({
@@ -638,8 +638,9 @@ export class Ambient {
   drawSky(ctx) {
     const t = this.village.time;
 
-    for (const { chimney } of BUILDINGS) {
-      sprites.chimney(ctx, chimney.x, chimney.y);
+    // Houses drawn with code already have their chimney
+    for (const { chimney, drawnChimney } of BUILDINGS) {
+      if (chimney && !drawnChimney) sprites.chimney(ctx, chimney.x, chimney.y);
     }
 
     for (const puff of this.smoke) {

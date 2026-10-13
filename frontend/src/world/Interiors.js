@@ -69,10 +69,18 @@ export class Interiors {
 
   /** Draws an interior (also the ones built later on the lots). */
   addRoom(interior) {
-    const tileMap = new TileMap(interior.map);
+    // Rooms drawn with code come with their picture; the others are Tiled maps
+    const tileMap = interior.canvas ? null : new TileMap(interior.map);
+    const empty = document.createElement("canvas");
     const map = new MapObject({
-      resource: tileMap.background,
-      foregroundResource: tileMap.foreground,
+      resource: tileMap?.background ?? {
+        image: interior.canvas,
+        isLoaded: true,
+      },
+      foregroundResource: tileMap?.foreground ?? {
+        image: empty,
+        isLoaded: true,
+      },
       width: interior.width,
       height: interior.height,
       position: new Vector2(interior.origin.x, interior.origin.y),

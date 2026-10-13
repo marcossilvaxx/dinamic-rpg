@@ -630,7 +630,14 @@ export class GameSession {
   villageLayout() {
     return this.places
       .filter((place) => place.lot)
-      .map(({ id, name, kind }) => ({ id, name, kind }));
+      .map(({ id, name, kind, trade, look, furniture }) => ({
+        id,
+        name,
+        kind,
+        trade: trade ?? (kind === "work" ? "shop" : "home"),
+        look: look ?? null,
+        furniture: furniture ?? [],
+      }));
   }
 
   /** Whether a place is a building (with an inside). */

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prévia: mapas gerados</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #1c1822;
+        color: #f4ead5;
+        font-family: system-ui, sans-serif;
+      }
+      h1 { margin: 0 0 4px; font-family: Georgia, serif; }
+      h2 { margin: 32px 0 8px; font-family: Georgia, serif; }
+      p.note { margin: 0 0 12px; opacity: 0.75; max-width: 900px; }
+      .row { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; }
+      figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+      figcaption { font-size: 13px; opacity: 0.85; text-align: center; }
+      figure.reference figcaption { color: #ffd36a; }
+      canvas { image-rendering: pixelated; border-radius: 4px; }
+      button {
+        margin-top: 12px; padding: 8px 18px; border: 2px solid #c9a46a; border-radius: 6px;
+        background: #f4ead5; color: #3b2a1a; font-weight: bold; font-size: 15px; cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Prévia: prédios e interiores gerados por código</h1>
+    <p class="note">
+      Em amarelo, o que vem dos tilesets hoje. O resto é desenhado por código a partir de uma
+      descrição (telhado, paredes, janelas, placa, móveis...), que o modelo de linguagem pode
+      escolher para cada construção.
+    </p>
+    <button id="reroll">Gerar outras</button>
+    <h2>Casas</h2>
+    <div class="row" id="houses"></div>
+    <h2>Na vila (casas geradas nos terrenos vazios)</h2>
+    <div class="row" id="village"></div>
+    <h2>Interiores</h2>
+    <div class="row" id="rooms"></div>
+    <script type="module" src="/src/preview.js"></script>
+  </body>
+</html>
