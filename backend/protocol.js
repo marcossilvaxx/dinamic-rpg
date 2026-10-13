@@ -4,7 +4,8 @@
 // Every message is a JSON object: { type, agentId?, data }
 
 // Client -> server
-// data: { quantity, language, places: [{ id, name, description }],
+// data: { quantity, language, places: [{ id, name, description, building? }],
+//         lots: [{ id, description }] (empty lots the village plan may use),
 //         worldEventIntervalMs?, resumeSessionId? }
 export const CREATE_AGENTS = "create_agents";
 export const ACCUSE = "accuse"; // data: { npcId } (mystery of the village)
@@ -17,8 +18,14 @@ export const CHAT_OPENED = "chat_opened";
 export const MYSTERY_DECISION = "mystery_decision";
 // data: { kind: "fishing" | "gathering", result: "miss" | "hit" | "perfect" }
 export const ACTIVITY = "activity";
-// data: { objectId } (use an object of the map: well, chest, crops...)
+// data: { objectId } (use an object of the map: well, chest, crops..., or
+// "rest" in a bed, "tavern_meal" at the counter of the tavern and
+// "rebuild:<placeId>" to help rebuilding a burned building; in the regions:
+// "travel:<region|village>", "tree_N", "ore_N", "crystal_N", "forage_N",
+// "camp_chest" and "trade:<merchant>:<buy|sell>:<index>")
 export const INTERACT = "interact";
+// data: { tiles: [[index, steps]] } (people walked on these tiles)
+export const WEAR = "wear";
 // data: { npcId, winner: "player" | "npc" | "none", witnesses: [npcId] }
 export const FIGHT_END = "fight_end";
 // data: { npcId } (the player hit an NPC out of a fight)
@@ -39,6 +46,9 @@ export const NPC_ENCOUNTER = "npc_encounter";
 export const NPC_CONVERSATION_END = "npc_conversation_end";
 
 // Server -> client
+// data: { lots: [{ id, name, kind: "home" | "work" }] } (what was built on
+// the empty lots; sent before the NPCs)
+export const VILLAGE_LAYOUT = "village_layout";
 // data: { agent, created, total } or { agent, visitor: true }
 export const AGENT_CREATED = "agent_created";
 export const AGENT_LEFT = "agent_left"; // agentId (a visitor left)
@@ -48,7 +58,8 @@ export const NPC_UPDATED = "npc_updated";
 export const NPC_FOLLOW = "npc_follow";
 // data: { ok, message, item?, quantity? }
 export const ACTIVITY_RESULT = "activity_result";
-// data: { objectId, ok, message, item?, quantity? }
+// data: { objectId, ok, message, item?, quantity?, rested? (game minutes),
+//         travel? (where the player arrived) }
 export const INTERACT_RESULT = "interact_result";
 // data: { status }
 export const MYSTERY_DECISION_RESULT = "mystery_decision_result";
@@ -69,6 +80,9 @@ export const NPC_SEEKS_PLAYER = "npc_seeks_player";
 // data: { weather, season, seasonLabel, raid: { placeId, until, bandits:
 //         [{ id, name, sprite, leader }] } | null, map: { ground, farm,
 //         wrecks, structures, tracks, emptyChests } (game/VillageMap.js),
+//         terrain: { wear: [[index, 0..100]], burned: [{ placeId, progress }] },
+//         regions: { location, depleted: ["forest:tree_3"], camp: { bandits,
+//         guarded, chestLooted } },
 //         festival: { day, title, description, placeId, placeName,
 //         startHour, endHour, status } | null }
 export const WORLD_STATE = "world_state";

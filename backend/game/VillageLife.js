@@ -76,6 +76,8 @@ export class VillageLife {
       weather: this.weather.current,
       raid: this.session.bandits?.toJSON() ?? null,
       map: this.session.villageMap?.toJSON() ?? null,
+      terrain: this.session.terrain?.toJSON() ?? null,
+      regions: this.session.regions?.toJSON() ?? null,
       season: this.season,
       seasonLabel: SEASON_INFO[this.season].label,
       festival: festival && {

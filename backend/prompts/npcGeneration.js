@@ -54,6 +54,7 @@ export const npcGenerationPrompt = ({
   occupation,
   sprite,
   language = "English",
+  home = null,
 }) => `${context}
 # Introduction
 
@@ -67,7 +68,7 @@ ${SPRITES[sprite]}
 
 Firstly, create a personality for ${name}. Secondly, create a story for ${name} and their origins, based on the world history. Be creative, but keep the character grounded and concrete: where they live and work in the village, what they do every day, which of the other villagers they know and what they want or worry about right now. Only mention people from the villagers list by name.
 
-Thirdly, choose ${name}'s daily routine: 2 or 3 places of the village (by id) where they spend the day, coherent with their occupation and story. The first one is where they work or live.
+Thirdly, choose ${name}'s daily routine: 2 or 3 places of the village (by id) where they spend the day, coherent with their occupation and story. The first one is where they work or live.${home ? ` ${name} ${home.kind === "home" ? "lives" : "works"} at ${home.name} (id: ${home.id}): it MUST be the first place of the routine, and the story should mention it.` : ""}
 
 Fourthly, give ${name} a secret: something small and concrete they hide from the others and would lie about (a debt, a broken promise, a hidden habit, a crush, a mistake at work...). It must NOT be a crime that hurts the village.
 

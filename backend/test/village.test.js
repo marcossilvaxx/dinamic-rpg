@@ -4,7 +4,9 @@ import { buildNpcTools } from "../agents/npcTools.js";
 import { npcDialogPrompt } from "../prompts/npcDialog.js";
 import { npcConversationPrompt } from "../prompts/npcConversation.js";
 import { worldContext } from "../prompts/worldContext.js";
-import { PLACES, createSession, fakeLlm } from "./helpers.js";
+import { GameSession } from "../game/GameSession.js";
+import { SessionStore } from "../storage/SessionStore.js";
+import { PLACES, createSession, fakeDatabase, fakeLlm } from "./helpers.js";
 
 const toolCall = (name, args) => ({ id: name, name, arguments: args });
 
@@ -143,4 +145,61 @@ test("dialog prompts start with the same world context (prompt cache)", () => {
   assert.ok(dialog.startsWith(context));
   assert.ok(conversation.startsWith(context));
   assert.match(dialog, /usually spend your day at: Taverna/);
+});
+
+test("the village plan builds on the empty lots and gives homes", async () => {
+  const llm = fakeLlm({
+    village_plan: () => ({
+      buildings: [
+        {
+          lot: "lot_north",
+          kind: "work",
+          name: "Ferraria",
+          description: "A smithy.",
+          owners: [1, 99],
+        },
+        {
+          lot: "lot_nowhere",
+          kind: "home",
+          name: "X",
+          description: "",
+          owners: [2],
+        },
+        {
+          lot: "lot_east",
+          kind: "home",
+          name: "Casa",
+          description: "A house.",
+          owners: [1, 2],
+        },
+      ],
+    }),
+  });
+  const session = new GameSession({
+    id: "plan",
+    llm,
+    store: new SessionStore(fakeDatabase(), "plan"),
+    maxMemoryMessages: 40,
+  });
+  const layouts = [];
+  await session.createNpcs({
+    quantity: 2,
+    language: "Portuguese",
+    places: PLACES,
+    lots: [
+      { id: "lot_north", description: "north meadow" },
+      { id: "lot_east", description: "by the sea" },
+    ],
+    onVillagePlanned: (built) => layouts.push(built),
+  });
+
+  assert.deepEqual(session.villageLayout(), [
+    { id: "lot_north", name: "Ferraria", kind: "work" },
+    { id: "lot_east", name: "Casa", kind: "home" },
+  ]);
+  assert.equal(layouts.length, 1);
+  assert.equal(session.getNpc(1).data.routine[0], "lot_north", "works there");
+  assert.equal(session.getNpc(2).data.routine[0], "lot_east", "lives there");
+  assert.ok(session.isBuilding("lot_east"));
+  assert.match(session.worldContext, /Ferraria/);
 });

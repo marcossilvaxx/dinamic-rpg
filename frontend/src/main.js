@@ -37,15 +37,19 @@ import { worldState } from "./state/worldState";
 import { gameClock } from "./systems/GameClock";
 import { FightManager } from "./systems/FightManager";
 import { NpcDirector } from "./systems/NpcDirector";
-import { scheduleFor } from "./systems/time";
+import { lightingAt, scheduleFor } from "./systems/time";
 import { WeatherEffects } from "./systems/WeatherEffects";
 import { Vector2 } from "./utils/Vector2";
 import { CollisionGrid } from "./utils/collisionGrid";
 import { overlayLayer } from "./utils/overlay";
 import { pathfinder } from "./utils/pathfinding";
+import { ChoiceMenu } from "./hud/ChoiceMenu";
 import { Interiors } from "./world/Interiors";
+import { Regions } from "./world/Regions";
 import { TileMap } from "./world/TileMap";
 import { Village } from "./world/Village";
+import { applyVillageLayout } from "./world/VillageLayout";
+import { LOTS } from "./levels/decor";
 
 const canvas = document.querySelector("#game-canvas");
 
@@ -82,6 +86,7 @@ mainScene.addChild(hero);
 mainScene.input = new Input();
 mainScene.player = hero;
 mainScene.collision = collision;
+mainScene.resolveFollowTarget = (npc) => interiors.resolveFollowTarget(npc);
 mainScene.overhearLog = overhearLog;
 mainScene.debugMode = false;
 
@@ -127,6 +132,20 @@ const interiors = new Interiors({
   npcs,
   camera,
   collision,
+  input: mainScene.input,
+  screen: { width: canvas.width, height: canvas.height },
+});
+
+// Menu of choices (travel by boat, trade with the merchants)
+const menu = new ChoiceMenu({ input: mainScene.input });
+
+// Forest, mine and town, reached by boat from the pier
+const regions = new Regions({
+  scene: mainScene,
+  hero,
+  npcs,
+  camera,
+  menu,
   screen: { width: canvas.width, height: canvas.height },
 });
 
@@ -139,6 +158,7 @@ const village = new Village({
   npcs,
   collision,
   interiors,
+  regions,
   screen: { width: canvas.width, height: canvas.height },
 });
 
@@ -168,7 +188,8 @@ const weatherEffects = new WeatherEffects({
 const minimap = new Minimap({
   mapWidth: map1.width,
   mapHeight: map1.height,
-  getPlayer: () => interiors.mapPosition(hero),
+  getPlayer: () =>
+    regions.isAway ? PLACES_BY_ID.dock : interiors.mapPosition(hero),
   getNpcs: () => [...npcs.values()],
   positionOf: (npc) => interiors.mapPosition(npc),
   mapImage: villageTiles.background,
@@ -281,6 +302,9 @@ const wakeUpInTavern = () => {
   mainScene.input.blocked = true;
 
   setTimeout(() => {
+    // Wherever it happened (a building, the forest...), back to the village
+    if (interiors.isInside) interiors.exit();
+    if (regions.isAway) regions.leave({ toPier: false });
     const tavern = PLACES_BY_ID.tavern ?? heroInitialPosition;
     const spot = npcSpawnPosition(tavern);
     hero.position.x = spot.x;
@@ -351,11 +375,13 @@ gameSocket.on("open", () => {
     data: {
       quantity: NUMBER_OF_NPCS,
       language: NPC_CONVERSATION_LANGUAGE,
-      places: PLACES.map(({ id, name, description }) => ({
+      places: PLACES.map(({ id, name, description, building }) => ({
         id,
         name,
         description,
+        building: Boolean(building),
       })),
+      lots: LOTS.map(({ id, description }) => ({ id, description })),
       worldEventIntervalMs: WORLD_EVENT_INTERVAL_MS,
       resumeSessionId: storage.get(),
     },
@@ -368,6 +394,22 @@ gameSocket.on(protocol.SESSION, ({ data }) => {
 
   if (isResumed) {
     statusBanner.show("Partida retomada!", { duration: 3000 });
+  }
+});
+
+// What the village plan built on the empty lots (before the NPCs arrive)
+gameSocket.on(protocol.VILLAGE_LAYOUT, ({ data }) => {
+  applyVillageLayout(data.lots, {
+    villageTiles,
+    collision,
+    interiors,
+    village,
+  });
+  if (data.lots.length) {
+    statusBanner.show(
+      `A vila tem: ${data.lots.map((lot) => lot.name).join(", ")}`,
+      { duration: 4000 },
+    );
   }
 });
 
@@ -390,7 +432,7 @@ const updateBandits = (raid) => {
 
   // The ones that left (or were beaten) disappear
   for (const [id, npc] of npcs) {
-    if (npc.data.bandit && !bandits.has(id)) {
+    if (npc.data.bandit && !npc.data.camp && !bandits.has(id)) {
       const remove = () => {
         npcs.delete(id);
         npc.destroy();
@@ -496,6 +538,7 @@ const update = (delta) => {
 
   mainScene.stepEntry(delta, mainScene);
   interiors.step(delta, { fighting: fights.isFighting });
+  regions.step(delta);
   village.step(delta);
   weatherEffects.step(delta);
   sound.updateAmbience(delta, {
@@ -506,7 +549,7 @@ const update = (delta) => {
   placeBanner.update(hero.position);
   activityHud.update(
     hero.position,
-    chatContainer.isOpen || journal.isOpen || fights.isFighting,
+    chatContainer.isOpen || journal.isOpen || fights.isFighting || menu.isOpen,
   );
 };
 
@@ -524,7 +567,8 @@ const draw = () => {
   mainScene.draw(ctx, 0, 0);
   map1.foreground.draw(ctx, 0, 0);
   interiors.drawForeground(ctx);
-  if (!interiors.isInside) village.drawTop(ctx); // Snow on the roofs, smoke...
+  regions.drawForeground(ctx);
+  if (!interiors.isInside && !regions.isAway) village.drawTop(ctx); // Snow, smoke...
 
   overlayLayer.draw(ctx); // Speech bubbles and icons, over the trees
 
@@ -533,6 +577,9 @@ const draw = () => {
   // Day and night, with the lights of the village (or of the room)
   if (interiors.isInside) {
     interiors.drawLighting(ctx, village.darkness, village.time);
+  } else if (regions.isAway) {
+    regions.drawLighting(ctx, lightingAt(gameClock.minuteOfDay));
+    if (!regions.current.dark) weatherEffects.draw(ctx);
   } else {
     village.drawLighting(ctx, camera);
     weatherEffects.draw(ctx);
@@ -557,6 +604,7 @@ if (import.meta.env.DEV) {
     updateBandits,
     village,
     interiors,
+    regions,
   };
 }
 

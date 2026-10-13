@@ -145,7 +145,18 @@ O jogo já roda enquanto o mundo é gerado: o mapa aparece na hora, e os morador
 - **Objetos (F):** poço (água fresca, que cura um pouco), pilha de lenha, baús escondidos que se reabastecem a cada dois dias, placas que mostram quem está em cada lugar e portas onde você pode bater para saber se alguém está em casa.
 - **Bichos e água:** galinhas que fogem de você, um gato que te segue depois de um carinho, pássaros que pousam e voam quando alguém se aproxima, gaivotas, borboletas, vaga-lumes nas noites quentes, peixes pulando perto do píer, ondas na costa e o brilho do sol na água.
 
-**Interiores:** dá para entrar na taverna, no armazém e nas casas (**F** na porta) e sair pelo tapete. Os moradores entram quando chegam ao lugar da rotina: almoçam e passam a noite na taverna, trabalham no balcão do armazém e dormem em casa. A taverna só fecha de madrugada e o armazém abre de dia. Uma casa só abre se tiver alguém acordado lá dentro, a menos que você seja amigo de quem mora lá. Fechada, a porta diz se estão todos dormindo ou onde estão os moradores.
+**Interiores:** dá para entrar na taverna, no armazém e nas casas (**F** na porta) e sair pelo tapete. Os moradores entram quando chegam ao lugar da rotina: almoçam e passam a noite na taverna, trabalham no balcão do armazém e dormem em casa. A taverna só fecha de madrugada e o armazém abre de dia. Uma casa só abre se tiver alguém acordado lá dentro, a menos que você seja amigo de quem mora lá. Fechada, a porta diz se estão todos dormindo ou onde estão os moradores. Lá dentro: no balcão da taverna dá para pedir uma sopa (3 moedas), no balcão do armazém ver o que está à venda, e na cama descansar (de noite até as 7h, de dia um cochilo de 2h). Um morador que quer falar com você entra no prédio para te encontrar.
+
+**Uma vila planejada pelo modelo:** ao criar o mundo, o modelo de linguagem decide o que construir nos terrenos vazios do mapa (casas, ferraria, enfermaria, padaria...), dá nome a cada construção e escolhe quem mora ou trabalha nela. As casas aparecem no mapa, ganham interior, e a rotina de cada morador começa pela sua casa ou pelo seu trabalho. Cada partida tem uma vila diferente.
+
+**O terreno muda:** onde as pessoas andam muito, a grama se gasta e vira uma trilha de terra, que volta a crescer se ninguém passa. Se ninguém impedir os bandidos, eles podem incendiar a casa da vítima: ela fica fechada, com fumaça e fuligem, até os moradores a reconstruírem (2 dias). Você ajuda levando 2 lenhas (**F** na porta) e ganha a gratidão de quem mora lá. Boas colheitas fazem os moradores abrirem novos canteiros (até 9).
+
+**Viagens de barco:** no píer, **F - Viajar de barco** leva (em meia hora de jogo) a:
+- **Floresta Sombria:** árvores para cortar com um machado (viram toco e crescem de novo em 2 dias), arbustos com cogumelos e frutas e o acampamento dos bandidos. Derrotar os vigias libera o baú deles e adia o próximo ataque à vila.
+- **Mina do Penhasco:** escura (sua lanterna e as tochas iluminam), com pedras de minério de ferro e carvão e cristais raros, extraídos com uma picareta.
+- **Vila de Pedravento:** uma praça com comerciantes que vendem machado, picareta, armas e comida, e compram minério, cristais, lenha e o que você colhe.
+
+Os moradores sabem desses lugares e podem pedir coisas que só se acham lá.
 
 **Interface:** minimapa no canto (**N** mostra ou esconde), nome do lugar ao entrar nele e sons sintetizados: pássaros de dia, grilos à noite, chuva, trovões, passos e a "voz" de cada personagem. **M** liga ou desliga o som. **P** pausa e despausa o jogo: o tempo da vila (relógio, clima, festas, prazos e eventos) para.
 
@@ -184,14 +195,14 @@ Cada partida é independente: na primeira vez, o backend gera um novo mundo e no
 
 ## Editando o mapa (Tiled)
 
-O mapa da vila e os interiores são desenhados tile a tile a partir dos arquivos do [Tiled](https://www.mapeditor.org/) em `frontend/tiled/` (`game-test-map.tmx` e `interiors/*.tmx`; as imagens dos tilesets ficam em `frontend/public/tilesets/`). Depois de editar um mapa no Tiled, gere o arquivo usado pelo jogo:
+O mapa da vila, os interiores e as regiões são desenhados tile a tile a partir dos arquivos do [Tiled](https://www.mapeditor.org/) em `frontend/tiled/` (`game-test-map.tmx`, `interiors/*.tmx` e `regions/*.tmx`; as imagens dos tilesets ficam em `frontend/public/tilesets/`). Depois de editar um mapa no Tiled, gere o arquivo usado pelo jogo:
 
 ```bash
 # Em frontend/
 npm run maps
 ```
 
-Convenções: a camada `Collisions` define onde não se anda, camadas que começam com `Foreground` são desenhadas por cima dos personagens e, nos interiores, a camada de objetos `Points` tem a entrada (`entrance`), o tapete de saída (`exit`), os lugares onde os moradores ficam (tipo `spot`) e as luzes (tipo `light`).
+Convenções: a camada `Collisions` define onde não se anda, camadas que começam com `Foreground` são desenhadas por cima dos personagens e, nos interiores, a camada de objetos `Points` tem a entrada (`entrance`), o tapete de saída (`exit`), os lugares onde os moradores ficam (tipo `spot`), os balcões (`counter`), a cama (`rest`) e as luzes (tipo `light`). Nas regiões, `Points` tem a chegada do barco (`arrival`), as árvores (`tree`), as pedras (`ore`), os cristais (`crystal`), os arbustos (`forage`), os comerciantes (`merchant`) e o acampamento (`camp`, `camp_chest`). Os terrenos vazios onde o modelo pode construir estão em `src/levels/decor.js` (`LOTS`).
 
 ## Testes e lint
 
@@ -210,7 +221,7 @@ backend/
   protocol.js              Tipos de mensagem do websocket
   game/GameSession.js      Núcleo de uma partida: NPCs, memória, relógio, o "tick" do tempo e o
                            salvamento; delega o resto para as partes abaixo
-  game/VillageBuilder.js   Criação da vila (história, elenco e NPCs em paralelo)
+  game/VillageBuilder.js   Criação da vila (história, elenco, planta da vila e NPCs em paralelo)
   game/PlayerChat.js       Chat com o jogador (streaming, saudação, companhia) e ações dos NPCs
   game/NpcSocial.js        Conversas entre NPCs, relações, escuta escondida, fofoca e pazes
   game/Quests.js           Pedidos, prazos e pedidos de paz entre inimigos
@@ -225,6 +236,8 @@ backend/
   game/Bandits.js          Ataques de bandidos e o título de protetor da vila
   game/VillageMap.js       Mapa vivo: plantação e colheita, neve e lama, destroços, construções,
                            pegadas do mistério e objetos (poço, lenha, baús)
+  game/Terrain.js          Trilhas gastas na grama e casas incendiadas (e a reconstrução)
+  game/Regions.js          Floresta, mina e vila vizinha: recursos, acampamento e comerciantes
   game/seasons.js          Estações do ano
   game/NpcConversation.js  Geração da conversa entre dois NPCs
   game/PlayerState.js      Reputação, inventário, pedidos (com prazo), pessoas conhecidas e notícias
@@ -268,7 +281,10 @@ frontend/src/
   levels/maps.js           Mapas exportados do Tiled (gerado por scripts/export-maps.mjs)
   levels/world.js          Vila + interiores numa só grade de colisão
   world/TileMap.js         Desenha um mapa do Tiled tile a tile (e permite trocar tiles)
-  world/Interiors.js       Entrar e sair dos prédios, moradores lá dentro e luz interna
+  world/Interiors.js       Entrar e sair dos prédios, moradores lá dentro, balcões, cama e luz interna
+  world/Regions.js         Viagens de barco, floresta, mina e vila vizinha (comércio e acampamento)
+  world/VillageLayout.js   Carimba as casas da vila planejada pelo modelo nos terrenos
+  hud/ChoiceMenu/          Menu de escolhas (viagem e comércio)
   levels/decor.js          Posições dos objetos do mapa (postes, moinho, poço, baús, plantação...)
   world/Village.js         Mapa vivo: estado do servidor, pegadas, luzes e interações (F)
   world/terrain.js         Lê os pixels do mapa e pré-desenha neve, outono, lama, espuma...

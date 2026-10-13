@@ -13,6 +13,10 @@ import {
   worldHistoryPrompt,
   worldHistorySchema,
 } from "../prompts/worldHistoryGeneration.js";
+import {
+  villagePlanPrompt,
+  villagePlanSchema,
+} from "../prompts/villagePlan.js";
 import { castProblems, fixCast } from "./cast.js";
 import { sanitizeWares } from "./shop.js";
 
@@ -38,11 +42,16 @@ const cleanList = (items, max) =>
  * Keeps only places of the map in the routine (at least one), and the other
  * generated fields valid.
  */
-export function sanitizeNpcData(content, places) {
+export function sanitizeNpcData(content, places, home = null) {
   const placeIds = new Set(places.map((place) => place.id));
-  const routine = [...new Set(content.routine ?? [])].filter((placeId) =>
+  let routine = [...new Set(content.routine ?? [])].filter((placeId) =>
     placeIds.has(placeId),
   );
+
+  // Their building (planned for them) always comes first
+  if (home && placeIds.has(home.id)) {
+    routine = [home.id, ...routine.filter((placeId) => placeId !== home.id)];
+  }
 
   if (routine.length === 0 && places.length > 0) {
     routine.push(places[Math.floor(Math.random() * places.length)].id);
@@ -121,6 +130,8 @@ export class VillageBuilder {
   async createNpc(id, sprite) {
     const { session } = this;
     const { name, occupation } = session.cast[id - 1];
+    const home =
+      session.places.find((place) => place.owners?.includes(id)) ?? null;
 
     const { content } = await session.llm.complete({
       cachePrefix: session.worldContext,
@@ -130,6 +141,7 @@ export class VillageBuilder {
         occupation,
         sprite,
         language: session.language,
+        home,
       }),
       messages: [{ role: "user", content: "Create the character." }],
       schema: npcGenerationSchema(session.places.map((place) => place.id)),
@@ -138,7 +150,7 @@ export class VillageBuilder {
     const data = {
       name,
       occupation,
-      ...sanitizeNpcData(content, session.places),
+      ...sanitizeNpcData(content, session.places, home),
       gender: spriteGender(sprite),
       sprite,
     };
@@ -153,11 +165,76 @@ export class VillageBuilder {
    * and the mystery of the village. Each NPC gets a distinct sprite (while
    * there are sprites available) to keep characters varied.
    */
+  /**
+   * The model decides what is built on the empty lots of the map and who
+   * lives or works there. Built lots become places (with a building).
+   * @returns {object[]} The built lots (places).
+   */
+  async planVillage(lots) {
+    const { session } = this;
+
+    if (lots.length === 0) return [];
+
+    let buildings = [];
+    try {
+      const { content } = await session.llm.complete({
+        messages: [
+          {
+            role: "user",
+            content: villagePlanPrompt({
+              worldHistory: session.world.worldHistory,
+              villagers: session.cast,
+              places: session.places,
+              lots,
+              language: session.language,
+            }),
+          },
+        ],
+        schema: villagePlanSchema,
+      });
+      buildings = content.buildings;
+    } catch (error) {
+      console.error(`[session ${session.id}] Village plan failed:`, error);
+    }
+
+    const slots = new Set(session.cast.map((villager) => villager.slot));
+    const used = new Set();
+    const built = [];
+
+    for (const building of buildings) {
+      const lot = lots.find((candidate) => candidate.id === building.lot);
+      if (!lot || built.some((place) => place.id === lot.id)) continue;
+
+      const owners = [...new Set(building.owners)]
+        .filter((slot) => slots.has(slot) && !used.has(slot))
+        .slice(0, 3);
+      owners.forEach((slot) => used.add(slot));
+
+      built.push({
+        id: lot.id,
+        name: building.name.trim().slice(0, 40) || lot.id,
+        description: `${building.description.trim().slice(0, 160)} (${lot.description})`,
+        building: true,
+        lot: true,
+        kind: building.kind === "work" ? "work" : "home",
+        owners,
+      });
+    }
+
+    session.places = [...session.places, ...built];
+    console.log(
+      `[session ${session.id}] Village plan: ${built.map((place) => place.name).join(", ") || "nothing built"}`,
+    );
+    return built;
+  }
+
   async createNpcs({
     quantity,
     language = null,
     places = [],
+    lots = [],
     onNpcCreated = () => {},
+    onVillagePlanned = () => {},
   }) {
     const { session } = this;
 
@@ -175,6 +252,7 @@ export class VillageBuilder {
     );
 
     await this.createWorld(sprites);
+    onVillagePlanned(await this.planVillage(lots));
 
     let created = 0;
 

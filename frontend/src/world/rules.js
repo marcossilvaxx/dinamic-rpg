@@ -114,7 +114,7 @@ export function cropLook(crop, stage) {
 export function buildingAccess(
   placeId,
   hour,
-  { awakeInside, asleepInside, friend },
+  { awakeInside, asleepInside, friend, workplace = false },
 ) {
   if (placeId === "tavern") {
     return hour >= 2 && hour < 6
@@ -122,7 +122,8 @@ export function buildingAccess(
       : { open: true, reason: null };
   }
 
-  if (placeId === "east_house" && hour >= 7 && hour < 20) {
+  // The store and the workplaces built on the lots open during the day
+  if ((placeId === "east_house" || workplace) && hour >= 7 && hour < 20) {
     return { open: true, reason: null };
   }
 

@@ -9,15 +9,17 @@ import { Combat } from "./Combat.js";
 import { healValue } from "./combatRules.js";
 import { Commerce } from "./Commerce.js";
 import { FamilyLife } from "./FamilyLife.js";
-import { GameClock } from "./GameClock.js";
+import { GameClock, MINUTES_PER_DAY } from "./GameClock.js";
 import { Goals } from "./Goals.js";
 import { Investigation } from "./Investigation.js";
 import { clampMood, describeMood, isSleepTime, needsAt } from "./needs.js";
 import { NpcSocial } from "./NpcSocial.js";
 import { PlayerChat } from "./PlayerChat.js";
-import { PlayerState } from "./PlayerState.js";
+import { COINS, PlayerState } from "./PlayerState.js";
 import { Quests } from "./Quests.js";
+import { Regions } from "./Regions.js";
 import { SeekPlanner } from "./Seeking.js";
+import { Terrain } from "./Terrain.js";
 import { VillageBuilder } from "./VillageBuilder.js";
 import { VillageLife } from "./VillageLife.js";
 import { VillageMap } from "./VillageMap.js";
@@ -30,6 +32,16 @@ const MAX_DIARY_ENTRIES = 6;
 const MOOD_DECAY_GAME_MINUTES = 180;
 // The session checks the time (weather, gatherings, deadlines...) this often
 const TICK_GAME_MINUTES = 5;
+// Places that are buildings when the client didn't say (old saved games)
+const DEFAULT_BUILDINGS = ["tavern", "west_house", "east_house"];
+// Tiles of the village map (worn paths)
+const MAX_MAP_TILES = 10000;
+// Resting in a bed (see rest)
+const WAKE_UP_HOUR = 7;
+const NAP_MINUTES = 120;
+// Meal sold at the counter of the tavern
+const MEAL = "sopa da taverna";
+const MEAL_PRICE = 3;
 // Version of the saved state (see toState)
 const STATE_VERSION = 1;
 
@@ -54,6 +66,8 @@ const STATE_VERSION = 1;
  * - activities:    fishing and gathering
  * - villageMap:    farm field, snow and mud, wrecks, buildings, footprints
  *                  and the objects of the map
+ * - terrain:       paths worn on the grass and buildings burned by bandits
+ * - regions:       forest, mine and town reached by boat
  */
 export class GameSession {
   constructor({
@@ -101,6 +115,8 @@ export class GameSession {
     this.combat = new Combat(this);
     this.bandits = new Bandits(this);
     this.villageMap = new VillageMap(this);
+    this.terrain = new Terrain(this);
+    this.regions = new Regions(this);
 
     this.paused = false;
     this.moods = new Map(); // npcId -> -5..5
@@ -346,7 +362,10 @@ export class GameSession {
       investigator: this.investigation.reputationAsInvestigator,
       defender: this.combat.title,
       raid: this.bandits.describe(),
-      surroundings: this.villageMap.describe(),
+      surroundings:
+        [this.villageMap.describe(), this.terrain.describe()]
+          .filter(Boolean)
+          .join(" ") || null,
       bond: this.bonds.describeFor(npcId),
       companion: this.playerChat.describeCompanion(npcId),
       goal: this.goals.describeFor(npcId),
@@ -532,10 +551,14 @@ export class GameSession {
   }
 
   banditDefeated(banditId) {
-    return this.bandits.defeat(banditId);
+    return this.regions.isCampBandit(banditId)
+      ? this.regions.campBanditDefeated(banditId)
+      : this.bandits.defeat(banditId);
   }
 
   knockedOutByBandits() {
+    // The player wakes up in the village
+    this.regions.backHome();
     return this.bandits.playerKnockedOut();
   }
 
@@ -555,8 +578,85 @@ export class GameSession {
   }
 
   /** The player uses an object of the map (F): well, chest, crops... */
-  interact(objectId) {
+  async interact(objectId) {
+    if (objectId === "rest") return this.rest();
+    if (objectId === "tavern_meal") return this.buyMeal();
+    if (objectId.startsWith("rebuild:")) {
+      return this.terrain.help(objectId.slice("rebuild:".length));
+    }
+    if (objectId.startsWith("travel:")) {
+      return this.regions.travel(objectId.slice("travel:".length));
+    }
+    if (objectId === "camp_chest") return this.regions.openCampChest();
+    if (objectId.startsWith("trade:")) {
+      const [, merchant, mode, index] = objectId.split(":");
+      return this.regions.trade(merchant, mode, Number(index));
+    }
+    const node = objectId.match(/^(tree|ore|crystal|forage)_\d+$/);
+    if (node) return this.regions.gather(node[1], objectId);
     return this.villageMap.interact(objectId);
+  }
+
+  /** People walked on these tiles (paths worn on the grass). */
+  addWear(entries) {
+    this.terrain.addWear(entries, MAX_MAP_TILES);
+  }
+
+  /** What the village plan built on the empty lots (for the client). */
+  villageLayout() {
+    return this.places
+      .filter((place) => place.lot)
+      .map(({ id, name, kind }) => ({ id, name, kind }));
+  }
+
+  /** Whether a place is a building (with an inside). */
+  isBuilding(placeId) {
+    const place = this.places.find((candidate) => candidate.id === placeId);
+    return place?.building ?? DEFAULT_BUILDINGS.includes(placeId);
+  }
+
+  /**
+   * The player rests in a bed: at night they sleep until the morning,
+   * during the day they nap for two hours.
+   */
+  async rest() {
+    const { hour, minuteOfDay } = this.clock;
+    const isNight = hour >= 20 || hour < 6;
+    const minutes = isNight
+      ? (WAKE_UP_HOUR * 60 - minuteOfDay + MINUTES_PER_DAY) % MINUTES_PER_DAY
+      : NAP_MINUTES;
+
+    this.clock.advance(minutes);
+    this.emit(protocol.CLOCK, { data: this.clock.toJSON() });
+    await this.tick();
+    this.emitWorldState();
+
+    return {
+      ok: true,
+      rested: minutes,
+      message: isNight
+        ? `Você dormiu até as ${WAKE_UP_HOUR}h e acordou descansado.`
+        : "Você tirou um cochilo de duas horas.",
+    };
+  }
+
+  /** A hot meal at the counter of the tavern. */
+  buyMeal() {
+    if (!this.player.removeItem(COINS, MEAL_PRICE)) {
+      return {
+        ok: false,
+        message: `A refeição custa ${MEAL_PRICE} moedas e você não tem o bastante.`,
+      };
+    }
+
+    this.player.addItem(MEAL, 1);
+    this.emitPlayerState();
+    return {
+      ok: true,
+      item: MEAL,
+      quantity: 1,
+      message: `Você pagou ${MEAL_PRICE} moedas por uma ${MEAL}.`,
+    };
   }
 
   doActivity(kind, result) {
@@ -620,7 +720,9 @@ export class GameSession {
       await this.visitors.update(day, hour);
       this.combat.update(now);
       await this.bandits.update(day, hour, now);
-      if (await this.villageMap.update(now, day, hour)) {
+      const mapChanged = await this.villageMap.update(now, day, hour);
+      const terrainChanged = await this.terrain.update(day);
+      if (mapChanged || terrainChanged) {
         this.emitWorldState();
       }
       this.save();
@@ -716,6 +818,8 @@ export class GameSession {
       combat: this.combat.toState(),
       bandits: this.bandits.toState(),
       villageMap: this.villageMap.toState(),
+      terrain: this.terrain.toState(),
+      regions: this.regions.toState(),
     };
   }
 
@@ -780,6 +884,8 @@ export class GameSession {
     if (state.combat) this.combat.restoreState(state.combat);
     if (state.bandits) this.bandits.restoreState(state.bandits);
     if (state.villageMap) this.villageMap.restoreState(state.villageMap);
+    if (state.terrain) this.terrain.restoreState(state.terrain);
+    if (state.regions) this.regions.restoreState(state.regions);
   }
 
   /** Stops the session; `forget` also deletes it from Redis. */

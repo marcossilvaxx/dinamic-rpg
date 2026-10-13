@@ -21,6 +21,11 @@ class Pathfinder {
     this.worker.postMessage({ type: "init", grid: collisionGrid.toJSON() });
   }
 
+  /** The collision grid changed (a house was built...). */
+  update(collisionGrid) {
+    this.worker?.postMessage({ type: "init", grid: collisionGrid.toJSON() });
+  }
+
   /**
    * @returns {Promise<{x: number, y: number}[] | null>}
    */

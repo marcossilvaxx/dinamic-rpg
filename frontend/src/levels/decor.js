@@ -16,8 +16,21 @@ const tileRect = (column, row, columns = 1, rows = 1) => ({
 });
 
 // The three houses of the map are the same drawing, moved
+// The house of the map as a stamp (prefab): tiles of the village map from
+// column 10, row 4 (6 x 8 tiles, with its shadow and doorstep). Empty lots
+// get a copy of it when the village plan builds there (see world/VillageLayout.js).
+export const HOUSE_PREFAB = {
+  column: 10,
+  row: 4,
+  columns: 6,
+  rows: 8,
+  layers: ["House", "Foreground Objects", "Paths"],
+};
+
 const house = (placeId, dx, dy) => ({
   placeId,
+  // The whole drawing (roof and walls)
+  area: { x: 132 + dx, y: 55 + dy, width: 48, height: 76 },
   door: { x: 156 + dx, y: 132 + dy },
   windows: [
     { x: 156 + dx, y: 104 + dy, round: true },
@@ -32,6 +45,54 @@ export const BUILDINGS = [
   house("tavern", 360, 25),
   house("east_house", 540, 133),
 ];
+
+// Empty lots where the village plan (made by the language model) may build
+// a house: top left tile of the prefab, and how it is described to the model
+export const LOTS = [
+  {
+    id: "lot_north",
+    column: 18,
+    row: 3,
+    description:
+      "a lot in the north-west meadow, between the west house and the north field",
+  },
+  {
+    id: "lot_meadow",
+    column: 31,
+    row: 3,
+    description: "a lot in the north meadow, north of the village garden",
+  },
+  {
+    id: "lot_garden",
+    column: 20,
+    row: 17,
+    description: "a lot west of the village garden, by the west road",
+  },
+  {
+    id: "lot_east",
+    column: 61,
+    row: 15,
+    description: "a lot in the east, near the coast and the east field",
+  },
+];
+
+/** Offset (pixels) of a lot from the west house, the model of the prefab. */
+const lotOffset = (lot) => ({
+  dx: (lot.column - HOUSE_PREFAB.column) * TILE,
+  dy: (lot.row - HOUSE_PREFAB.row) * TILE,
+});
+
+/** The house built on a lot (door, windows, chimney, like BUILDINGS). */
+export const lotBuilding = (lot) => {
+  const { dx, dy } = lotOffset(lot);
+  return house(lot.id, dx, dy);
+};
+
+/** The place in front of the door of a lot (like the west house's). */
+export const lotPlace = (lot) => {
+  const { dx, dy } = lotOffset(lot);
+  return { x: 148 + dx, y: 140 + dy };
+};
 
 // Street lamps (lit at night)
 export const LAMPS = [
@@ -55,9 +116,9 @@ export const WOODPILE = {
 export const SCARECROW = { ...tileRect(56, 6), kind: "scarecrow" };
 
 export const CHESTS = [
-  { ...tileRect(22, 3), kind: "chest", id: "chest_north" },
+  { ...tileRect(27, 3), kind: "chest", id: "chest_north" },
   { ...tileRect(30, 32), kind: "chest", id: "chest_south" },
-  { ...tileRect(66, 20), kind: "chest", id: "chest_east" },
+  { ...tileRect(64, 25), kind: "chest", id: "chest_east" },
 ];
 
 // Signposts with the name of the place
@@ -69,7 +130,8 @@ export const SIGNS = [
   { ...tileRect(14, 31), placeId: "dock" },
 ].map((sign) => ({ ...sign, kind: "sign" }));
 
-// Farm field: plots of 2x1 tiles (walkable), index = plot id of the server
+// Farm field: plots of 2x1 tiles (walkable), index = plot id of the server.
+// The first 6 are there from the start; good harvests open the others.
 export const FARM_PLOTS = [
   [47, 5],
   [50, 5],
@@ -77,6 +139,9 @@ export const FARM_PLOTS = [
   [47, 7],
   [50, 7],
   [53, 7],
+  [47, 9],
+  [50, 9],
+  [53, 9],
 ].map(([column, row], index) => ({
   index,
   x: column * TILE,
@@ -105,7 +170,7 @@ export const BUSHES = [
   { x: 352, y: 104 },
   { x: 300, y: 112 },
   { x: 722, y: 146 },
-  { x: 762, y: 176 },
+  { x: 764, y: 164 },
   { x: 384, y: 262 },
   { x: 466, y: 240 },
 ];
@@ -138,7 +203,7 @@ export const STRUCTURE_SPOTS = {
   ],
   east_house: [
     { x: 646, y: 250 },
-    { x: 744, y: 250 },
+    { x: 604, y: 296 },
     { x: 740, y: 286 },
   ],
   garden: [
@@ -157,9 +222,9 @@ export const STRUCTURE_SPOTS = {
     { x: 520, y: 316 },
   ],
   north_meadow: [
-    { x: 290, y: 70 },
-    { x: 372, y: 70 },
-    { x: 260, y: 100 },
+    { x: 360, y: 40 },
+    { x: 300, y: 40 },
+    { x: 300, y: 130 },
   ],
   east_meadow: [
     { x: 716, y: 184 },

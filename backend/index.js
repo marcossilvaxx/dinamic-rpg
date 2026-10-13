@@ -26,9 +26,25 @@ const sanitizePlaces = (places) =>
         typeof place.name === "string" &&
         typeof place.description === "string",
     )
-    .map(({ id, name, description }) => ({
+    .map(({ id, name, description, building }) => ({
       id,
       name: name.slice(0, 40),
+      description: description.slice(0, 200),
+      building: building === true,
+    }));
+
+// Empty lots of the map where the village plan may build (see VillageBuilder)
+const MAX_LOTS = 8;
+const sanitizeLots = (lots) =>
+  (Array.isArray(lots) ? lots : [])
+    .slice(0, MAX_LOTS)
+    .filter(
+      (lot) =>
+        /^lot_[a-z_]{1,20}$/.test(lot?.id) &&
+        typeof lot.description === "string",
+    )
+    .map(({ id, description }) => ({
+      id,
       description: description.slice(0, 200),
     }));
 
@@ -108,6 +124,9 @@ const disposeSession = (sessionId, { forget }) => {
 
 const sendGameState = async (ws, session) => {
   const { agents, clock, world } = session.snapshot();
+  send(ws, protocol.VILLAGE_LAYOUT, {
+    data: { lots: session.villageLayout() },
+  });
   send(ws, protocol.CLOCK, { data: clock });
   send(ws, protocol.WORLD_STATE, { data: world });
   send(ws, protocol.AGENTS_CREATED, { data: agents });
@@ -173,6 +192,11 @@ const handlers = {
       quantity,
       language,
       places: sanitizePlaces(data?.places),
+      lots: sanitizeLots(data?.lots),
+      onVillagePlanned: () =>
+        send(ws, protocol.VILLAGE_LAYOUT, {
+          data: { lots: session.villageLayout() },
+        }),
       onNpcCreated: (agent, created, total) =>
         send(ws, protocol.AGENT_CREATED, { data: { agent, created, total } }),
     });
@@ -302,6 +326,10 @@ const handlers = {
     const objectId = String(data?.objectId ?? "").slice(0, 40);
     const result = await session.interact(objectId);
     send(ws, protocol.INTERACT_RESULT, { data: { objectId, ...result } });
+  },
+
+  async [protocol.WEAR](ws, { session }, { data }) {
+    session.addWear(data?.tiles);
   },
 
   async [protocol.ACTIVITY](ws, { session }, { data }) {

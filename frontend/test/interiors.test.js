@@ -3,9 +3,12 @@ import { test } from "node:test";
 import { BUILDINGS } from "../src/levels/decor.js";
 import {
   INTERIORS,
+  LOT_INTERIOR_ORIGINS,
   VILLAGE_WIDTH,
+  addLotInterior,
   interiorAt,
   interiorPoint,
+  rasterizeArea,
   worldCollisionRows,
 } from "../src/levels/world.js";
 import { CollisionGrid } from "../src/utils/collisionGrid.js";
@@ -87,8 +90,40 @@ test("who can go into a building", () => {
     "sleeping",
   );
   assert.equal(
+    buildingAccess("lot_east", 10, { ...nobody, workplace: true }).open,
+    true,
+    "workplaces open during the day",
+  );
+  assert.equal(
     buildingAccess("west_house", 23, { ...nobody, friend: true }).open,
     true,
     "friends are welcome",
   );
+});
+
+test("houses built on the lots get an interior that works", () => {
+  const ids = Object.keys(LOT_INTERIOR_ORIGINS);
+  for (const id of ids) {
+    const interior = addLotInterior({
+      id,
+      name: id,
+      kind: id === "lot_east" ? "work" : "home",
+    });
+    assert.equal(interior.origin.x % 12, 0);
+    assert.equal(
+      interiorAt(interior.origin.x + 1, interior.origin.y + 1),
+      interior,
+    );
+
+    const rows = worldCollisionRows();
+    rasterizeArea(rows, interior);
+    const lotGrid = new CollisionGrid(rows, 12);
+    const blocked = (x, y) => lotGrid.isBlocked(x, y, 16, 12);
+    const entrance = interiorPoint(interior, "entrance");
+    assert.equal(blocked(entrance.x, entrance.y), false, `${id} entrance`);
+  }
+
+  // Far enough from each other and from the regions
+  const xs = ids.map((id) => LOT_INTERIOR_ORIGINS[id].x).sort((a, b) => a - b);
+  xs.slice(1).forEach((x, i) => assert.ok(x - xs[i] >= 224 + 48));
 });
