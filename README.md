@@ -98,6 +98,8 @@ $ npm run dev
 
 Em seguida acesse http://localhost:5173/ para iniciar o jogo. Divirta-se!
 
+O jogo abre num menu: **Continuar** retoma a partida salva (mostra o dia, a estação e as construções da vila) e **Novo jogo** cria outra vila (se houver uma partida salva, ela é apagada depois de você confirmar). Na pausa (**P**), **Menu principal** volta para esse menu sem perder a partida.
+
 ## Vida na vila
 
 O jogo já roda enquanto o mundo é gerado: o mapa aparece na hora, e os moradores chegam à vila conforme são criados.
@@ -285,6 +287,7 @@ frontend/src/
   world/Regions.js         Viagens de barco, floresta, mina e vila vizinha (comércio e acampamento)
   world/VillageLayout.js   Carimba as casas da vila planejada pelo modelo nos terrenos
   hud/ChoiceMenu/          Menu de escolhas (viagem e comércio)
+  hud/MainMenu/            Menu inicial: continuar a partida salva ou começar um novo jogo
   levels/decor.js          Posições dos objetos do mapa (postes, moinho, poço, baús, plantação...)
   world/Village.js         Mapa vivo: estado do servidor, pegadas, luzes e interações (F)
   world/terrain.js         Lê os pixels do mapa e pré-desenha neve, outono, lama, espuma...

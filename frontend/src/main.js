@@ -13,6 +13,7 @@ import { clockHud } from "./hud/ClockHud";
 import { Journal } from "./hud/Journal";
 import { ActivityHud } from "./hud/Activity";
 import { Minimap } from "./hud/Minimap";
+import { MainMenu } from "./hud/MainMenu";
 import { PauseScreen } from "./hud/PauseScreen";
 import { placeBanner } from "./hud/PlaceBanner";
 import { notifications } from "./hud/Notifications";
@@ -221,7 +222,12 @@ const setPaused = (paused) => {
   gameSocket.send(protocol.SET_PAUSED, { data: { paused } });
 };
 
-const pauseScreen = new PauseScreen({ onResume: () => setPaused(false) });
+// Back to the main menu: the server keeps the game saved, the page starts
+// again on the menu
+const pauseScreen = new PauseScreen({
+  onResume: () => setPaused(false),
+  onMainMenu: () => window.location.reload(),
+});
 
 // Audio can only start after a user gesture. M mutes, N shows/hides the map.
 const isTyping = (event) =>
@@ -367,10 +373,12 @@ const addNpc = ({ id, data }) => {
 };
 
 setStatus(null);
-statusBanner.show("Conectando...");
 
-gameSocket.on("open", () => {
-  statusBanner.show("Gerando o mundo...");
+// Title screen: the game starts (or is resumed) once the player chooses
+const startGame = ({ resume }) => {
+  const savedId = storage.get();
+  mainScene.input.blocked = false;
+  statusBanner.show(resume ? "Retomando a partida..." : "Gerando o mundo...");
   gameSocket.send(protocol.CREATE_AGENTS, {
     data: {
       quantity: NUMBER_OF_NPCS,
@@ -383,10 +391,31 @@ gameSocket.on("open", () => {
       })),
       lots: LOTS.map(({ id, description }) => ({ id, description })),
       worldEventIntervalMs: WORLD_EVENT_INTERVAL_MS,
-      resumeSessionId: storage.get(),
+      resumeSessionId: resume ? savedId : null,
+      forgetSessionId: resume ? null : savedId,
     },
   });
+};
+
+const mainMenu = new MainMenu({
+  onContinue: () => startGame({ resume: true }),
+  onNewGame: () => startGame({ resume: false }),
 });
+mainScene.input.blocked = true;
+
+// Is there a saved game to continue?
+gameSocket.on("open", () => {
+  const savedId = storage.get();
+  if (savedId) {
+    gameSocket.send(protocol.SESSION_INFO, { data: { sessionId: savedId } });
+  } else {
+    mainMenu.show(null);
+  }
+});
+
+gameSocket.on(protocol.SAVED_GAME, ({ data }) =>
+  mainMenu.show(data.exists ? data : null),
+);
 
 gameSocket.on(protocol.SESSION, ({ data }) => {
   storage.set(data.sessionId);
@@ -405,7 +434,7 @@ gameSocket.on(protocol.VILLAGE_LAYOUT, ({ data }) => {
     interiors,
     village,
   });
-  if (data.lots.length) {
+  if (data.lots.length && !isResumed) {
     statusBanner.show(
       `A vila tem: ${data.lots.map((lot) => lot.name).join(", ")}`,
       { duration: 4000 },
@@ -468,6 +497,7 @@ gameSocket.on(protocol.NOTIFICATION, ({ data }) => {
 });
 
 gameSocket.on("close", () => {
+  mainMenu.hide();
   statusBanner.hide();
   setStatus(
     isLoaded
@@ -549,7 +579,11 @@ const update = (delta) => {
   placeBanner.update(hero.position);
   activityHud.update(
     hero.position,
-    chatContainer.isOpen || journal.isOpen || fights.isFighting || menu.isOpen,
+    chatContainer.isOpen ||
+      journal.isOpen ||
+      fights.isFighting ||
+      menu.isOpen ||
+      mainMenu.isOpen,
   );
 };
 

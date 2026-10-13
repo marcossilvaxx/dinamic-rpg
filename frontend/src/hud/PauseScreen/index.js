@@ -1,7 +1,10 @@
-/** Screen shown while the game is paused, with a button to continue. */
+/**
+ * Screen shown while the game is paused, with buttons to continue and to go
+ * back to the main menu (the game stays saved).
+ */
 export class PauseScreen {
-  /** @param {{ onResume: () => void }} options */
-  constructor({ onResume, root = "game-container" }) {
+  /** @param {{ onResume: () => void, onMainMenu: () => void }} options */
+  constructor({ onResume, onMainMenu, root = "game-container" }) {
     this.element = document.createElement("div");
     this.element.className = "pause-screen";
 
@@ -16,7 +19,16 @@ export class PauseScreen {
     button.textContent = "Continuar";
     button.addEventListener("click", () => onResume());
 
-    this.element.append(title, hint, button);
+    const menu = document.createElement("button");
+    menu.className = "secondary";
+    menu.textContent = "Menu principal";
+    menu.addEventListener("click", () => onMainMenu());
+
+    const buttons = document.createElement("div");
+    buttons.className = "pause-buttons";
+    buttons.append(button, menu);
+
+    this.element.append(title, hint, buttons);
     document.getElementById(root).appendChild(this.element);
   }
 

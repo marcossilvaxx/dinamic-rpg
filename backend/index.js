@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { WebSocketServer } from "ws";
 import { config } from "./config.js";
 import { connectDatabase } from "./db/index.js";
-import { GameSession } from "./game/GameSession.js";
+import { GameSession, describeSavedGame } from "./game/GameSession.js";
 import { createLlmClient } from "./llm/client.js";
 import * as protocol from "./protocol.js";
 import { SessionStore } from "./storage/SessionStore.js";
@@ -149,11 +149,50 @@ const sendAnswer = (ws, agentId, { content, actions }) => {
 const streamTo = (ws, agentId) => (content) =>
   send(ws, protocol.CHAT_DELTA, { agentId, data: { content } });
 
+/** The player started a new game: the old saved game is deleted. */
+const forgetSavedGame = async (sessionId) => {
+  if (typeof sessionId !== "string" || !SESSION_ID.test(sessionId)) return;
+
+  const entry = sessions.get(sessionId);
+  if (entry?.ws) return; // Open in another tab
+
+  if (entry) {
+    disposeSession(sessionId, { forget: true });
+  } else {
+    await new SessionStore(database, sessionId).clear();
+  }
+  console.log(`[session ${sessionId}] Deleted (new game)`);
+};
+
 const handlers = {
+  // Main menu: what the saved game is (or that there is none)
+  async [protocol.SESSION_INFO](ws, connection, { data }) {
+    const sessionId = data?.sessionId;
+    let info = { exists: false };
+
+    if (typeof sessionId === "string" && SESSION_ID.test(sessionId)) {
+      const entry = sessions.get(sessionId);
+      const state = entry?.session.isReady
+        ? entry.session.toState()
+        : await new SessionStore(database, sessionId).getState();
+      const saved = describeSavedGame(state, {
+        daysPerSeason: config.DAYS_PER_SEASON,
+      });
+
+      if (saved) {
+        info = { exists: true, inUse: Boolean(entry?.ws), ...saved };
+      }
+    }
+
+    send(ws, protocol.SAVED_GAME, { data: info });
+  },
+
   async [protocol.CREATE_AGENTS](ws, connection, { data }) {
     if (connection.session) {
       throw new Error("The game was already created");
     }
+
+    await forgetSavedGame(data?.forgetSessionId);
 
     const resumed =
       typeof data?.resumeSessionId === "string"
@@ -364,7 +403,8 @@ wss.on("connection", (ws) => {
     }
 
     try {
-      if (!connection.session && message.type !== protocol.CREATE_AGENTS) {
+      const beforeTheGame = [protocol.CREATE_AGENTS, protocol.SESSION_INFO];
+      if (!connection.session && !beforeTheGame.includes(message.type)) {
         throw new Error("The game was not created yet");
       }
 

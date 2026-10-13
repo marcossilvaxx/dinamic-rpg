@@ -5,6 +5,7 @@
 
 // Client -> server
 // data: { quantity, language, places: [{ id, name, description, building? }],
+//         forgetSessionId? (new game: the saved game is deleted),
 //         lots: [{ id, description }] (empty lots the village plan may use),
 //         worldEventIntervalMs?, resumeSessionId? }
 export const CREATE_AGENTS = "create_agents";
@@ -26,6 +27,8 @@ export const ACTIVITY = "activity";
 export const INTERACT = "interact";
 // data: { tiles: [[index, steps]] } (people walked on these tiles)
 export const WEAR = "wear";
+// data: { sessionId } (main menu: is there a saved game to continue?)
+export const SESSION_INFO = "session_info";
 // data: { npcId, winner: "player" | "npc" | "none", witnesses: [npcId] }
 export const FIGHT_END = "fight_end";
 // data: { npcId } (the player hit an NPC out of a fight)
@@ -89,6 +92,9 @@ export const WORLD_STATE = "world_state";
 // agentId, data: { action, lastWords, placeId?, targetId? }
 export const NPC_ACTION = "npc_action";
 export const WORLD_EVENT = "world_event"; // data: { headline }
+// Answer to session_info: data: { exists, inUse?, day?, moment?, season?,
+//                                  villagers?, buildings? }
+export const SAVED_GAME = "saved_game";
 // Sent first, so the client can resume the session after a reload
 export const SESSION = "session"; // data: { sessionId, resumed }
 // Reputation, inventory, quests, mystery, news... (journal)

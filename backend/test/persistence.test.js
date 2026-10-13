@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { GameSession } from "../game/GameSession.js";
+import { GameSession, describeSavedGame } from "../game/GameSession.js";
 import { SessionStore } from "../storage/SessionStore.js";
 import {
   PLACES,
   fakeDatabase,
   fakeLlm,
+  recordingSession,
   setTime,
   toolCall,
   toolLlm,
@@ -103,4 +104,19 @@ test("an incomplete game is not saved", async () => {
   await session.flush();
 
   assert.equal(await GameSession.load(options(database)), null);
+});
+
+test("the main menu describes a saved game", async () => {
+  const { session } = await recordingSession(fakeLlm());
+  setTime(session, 2 * 24 * 60 + 9 * 60); // Day 3, 09:00
+
+  const saved = describeSavedGame(session.toState());
+  assert.equal(saved.day, 3);
+  assert.equal(saved.moment, "Dia 3, 09:00");
+  assert.equal(saved.villagers, 2);
+  assert.equal(saved.season, "Verão");
+  assert.deepEqual(saved.buildings, []);
+
+  assert.equal(describeSavedGame(null), null);
+  assert.equal(describeSavedGame({ ...session.toState(), version: 0 }), null);
 });

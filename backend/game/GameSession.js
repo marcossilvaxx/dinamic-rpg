@@ -18,6 +18,7 @@ import { PlayerChat } from "./PlayerChat.js";
 import { COINS, PlayerState } from "./PlayerState.js";
 import { Quests } from "./Quests.js";
 import { Regions } from "./Regions.js";
+import { SEASON_INFO, seasonOf } from "./seasons.js";
 import { SeekPlanner } from "./Seeking.js";
 import { Terrain } from "./Terrain.js";
 import { VillageBuilder } from "./VillageBuilder.js";
@@ -44,6 +45,29 @@ const MEAL = "sopa da taverna";
 const MEAL_PRICE = 3;
 // Version of the saved state (see toState)
 const STATE_VERSION = 1;
+
+/**
+ * What the main menu shows about a saved game (see toState).
+ * @returns {{day: number, moment: string, season: string, villagers: number,
+ *   buildings: string[]} | null} null when it can't be continued.
+ */
+export function describeSavedGame(state, { daysPerSeason = 2 } = {}) {
+  if (!state || state.version !== STATE_VERSION || !state.cast?.length) {
+    return null;
+  }
+
+  const day = Math.floor(state.totalMinutes / MINUTES_PER_DAY) + 1;
+
+  return {
+    day,
+    moment: GameClock.formatMoment(state.totalMinutes),
+    season: SEASON_INFO[seasonOf(day, daysPerSeason)].label,
+    villagers: state.cast.length,
+    buildings: (state.places ?? [])
+      .filter((place) => place.lot)
+      .map((place) => place.name),
+  };
+}
 
 /**
  * State of one game: the world, its NPCs and the player. It outlives the
