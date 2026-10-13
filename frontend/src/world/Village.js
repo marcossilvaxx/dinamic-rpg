@@ -17,7 +17,7 @@ import { gameSocket } from "../net/socket";
 import { worldState } from "../state/worldState";
 import { gameClock } from "../systems/GameClock";
 import { activityAt } from "../systems/activity";
-import { isSleepTime, lightingAt } from "../systems/time";
+import { lightingAt } from "../systems/time";
 import { pathfinder } from "../utils/pathfinding";
 import { Ambient } from "./Ambient";
 import { GroundLayer } from "./GroundLayer";
@@ -47,7 +47,7 @@ const approach = (value, target, amount) =>
 
 /**
  * The living map: what the server says about it (world_state.map), the
- * layers drawn over map.png, the props, the animals, the lights and the
+ * layers drawn over the village map, the props, the animals, the lights and the
  * objects the player uses with F.
  */
 export class Village {
@@ -58,10 +58,12 @@ export class Village {
    * @param {import("../objects/Hero").Hero} options.hero
    * @param {Map<number, import("../objects/Npc").Npc>} options.npcs
    * @param {import("../utils/collisionGrid").CollisionGrid} options.collision
+   * @param {import("./Interiors").Interiors} options.interiors
    * @param {{width: number, height: number}} options.screen
    */
-  constructor({ scene, map, hero, npcs, collision, screen }) {
+  constructor({ scene, map, hero, npcs, collision, interiors, screen }) {
     this.map = map;
+    this.interiors = interiors;
     this.hero = hero;
     this.npcs = npcs;
     this.collision = collision;
@@ -377,6 +379,13 @@ export class Village {
 
   /** The object of the map close to `position` (top of the hero hitbox). */
   interactionAt(position) {
+    // Inside a building only the door matters
+    if (this.interiors.isInside) {
+      return this.interiors.isAtExit(position, 14)
+        ? { label: "Sair", run: () => this.interiors.exit() }
+        : null;
+    }
+
     const feet = { x: position.x + 8, y: position.y + 10 };
     const near = (x, y, distance = INTERACT_DISTANCE) =>
       Math.hypot(feet.x - x, feet.y - y) <= distance;
@@ -447,7 +456,10 @@ export class Village {
 
     for (const { placeId, door } of BUILDINGS) {
       if (near(door.x, door.y + 4, 14)) {
-        return { label: "Bater na porta", run: () => this.knock(placeId) };
+        const access = this.interiors.access(placeId);
+        return access.open
+          ? { label: "Entrar", run: () => this.interiors.enter(placeId) }
+          : { label: "Bater na porta", run: () => this.knock(placeId, access) };
       }
     }
 
@@ -481,7 +493,9 @@ export class Village {
     return [...this.npcs.values()].filter(
       (npc) =>
         !npc.data.bandit &&
-        nearestPlace(npc.position, PLACE_RADIUS + 30)?.id === placeId,
+        (npc.indoor
+          ? npc.indoor.placeId === placeId
+          : nearestPlace(npc.position, PLACE_RADIUS + 30)?.id === placeId),
     );
   }
 
@@ -495,18 +509,24 @@ export class Village {
     );
   }
 
-  /** Knocking on a door: who lives there answers, if they are home. */
-  knock(placeId) {
+  /** Where an NPC is now (a place of the village or a building). */
+  whereIs(npc) {
+    if (npc.indoor) return PLACES_BY_ID[npc.indoor.placeId]?.name ?? "em casa";
+    return nearestPlace(npc.position, PLACE_RADIUS + 60)?.name ?? "pela vila";
+  }
+
+  /** Knocking on a closed door: why nobody opens it. */
+  knock(placeId, { reason }) {
     sound.knock();
     const place = PLACES_BY_ID[placeId];
 
     if (placeId === "tavern") {
-      const people = this.peopleAt("tavern").map((npc) => npc.data.name);
-      notifications.push(
-        people.length
-          ? `A taverna está aberta. Lá dentro: ${people.join(", ")}`
-          : "A taverna está vazia agora.",
-      );
+      notifications.push("A taverna está fechada. Abre às 6h.");
+      return;
+    }
+
+    if (reason === "sleeping") {
+      notifications.push("Ninguém atende. Estão todos dormindo.");
       return;
     }
 
@@ -522,27 +542,9 @@ export class Village {
       return;
     }
 
-    const home = residents.filter((npc) =>
-      this.peopleAt(placeId).includes(npc),
+    const where = residents.map(
+      (npc) => `${npc.data.name} (${this.whereIs(npc)})`,
     );
-
-    if (isSleepTime(Math.floor(this.hour)) && home.length) {
-      notifications.push("Ninguém atende. Estão todos dormindo.");
-      return;
-    }
-
-    if (home.length) {
-      home[0].sayLine("Já vou!", { emotion: "surprised" });
-      notifications.push(
-        `${home.map((npc) => npc.data.name).join(" e ")} está em casa.`,
-      );
-      return;
-    }
-
-    const where = residents.map((npc) => {
-      const at = nearestPlace(npc.position, PLACE_RADIUS + 60);
-      return `${npc.data.name} (${at ? at.name : "pela vila"})`;
-    });
     notifications.push(`Ninguém em casa. Moram aqui: ${where.join(", ")}.`);
   }
 }

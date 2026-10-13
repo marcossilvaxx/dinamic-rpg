@@ -145,6 +145,8 @@ O jogo já roda enquanto o mundo é gerado: o mapa aparece na hora, e os morador
 - **Objetos (F):** poço (água fresca, que cura um pouco), pilha de lenha, baús escondidos que se reabastecem a cada dois dias, placas que mostram quem está em cada lugar e portas onde você pode bater para saber se alguém está em casa.
 - **Bichos e água:** galinhas que fogem de você, um gato que te segue depois de um carinho, pássaros que pousam e voam quando alguém se aproxima, gaivotas, borboletas, vaga-lumes nas noites quentes, peixes pulando perto do píer, ondas na costa e o brilho do sol na água.
 
+**Interiores:** dá para entrar na taverna, no armazém e nas casas (**F** na porta) e sair pelo tapete. Os moradores entram quando chegam ao lugar da rotina: almoçam e passam a noite na taverna, trabalham no balcão do armazém e dormem em casa. A taverna só fecha de madrugada e o armazém abre de dia. Uma casa só abre se tiver alguém acordado lá dentro, a menos que você seja amigo de quem mora lá. Fechada, a porta diz se estão todos dormindo ou onde estão os moradores.
+
 **Interface:** minimapa no canto (**N** mostra ou esconde), nome do lugar ao entrar nele e sons sintetizados: pássaros de dia, grilos à noite, chuva, trovões, passos e a "voz" de cada personagem. **M** liga ou desliga o som. **P** pausa e despausa o jogo: o tempo da vila (relógio, clima, festas, prazos e eventos) para.
 
 ## Objetivos e vida da vila
@@ -179,6 +181,17 @@ Quando dois NPCs se encontram pelo mapa, eles podem conversar entre si. As falas
 A frequência das conversas é configurada em `NPC_CHAT`, no arquivo `frontend/src/config/constants.js`, e o idioma em `NPC_CONVERSATION_LANGUAGE`. Para ver as conversas, as rotinas e os eventos acontecendo logo no início, acesse http://localhost:5173/?fastNpcChat.
 
 Cada partida é independente: na primeira vez, o backend gera um novo mundo e novos NPCs. Ao recarregar a página, o jogo retoma a mesma partida, que fica salva no Redis por 7 dias sem ser jogada (ver `SESSION_TTL_DAYS`), mesmo que o backend seja reiniciado. Para começar uma vila nova, apague a chave `dinamic-rpg:session` do `localStorage` do navegador (ou abra o jogo numa janela anônima).
+
+## Editando o mapa (Tiled)
+
+O mapa da vila e os interiores são desenhados tile a tile a partir dos arquivos do [Tiled](https://www.mapeditor.org/) em `frontend/tiled/` (`game-test-map.tmx` e `interiors/*.tmx`; as imagens dos tilesets ficam em `frontend/public/tilesets/`). Depois de editar um mapa no Tiled, gere o arquivo usado pelo jogo:
+
+```bash
+# Em frontend/
+npm run maps
+```
+
+Convenções: a camada `Collisions` define onde não se anda, camadas que começam com `Foreground` são desenhadas por cima dos personagens e, nos interiores, a camada de objetos `Points` tem a entrada (`entrance`), o tapete de saída (`exit`), os lugares onde os moradores ficam (tipo `spot`) e as luzes (tipo `light`).
 
 ## Testes e lint
 
@@ -252,6 +265,10 @@ frontend/src/
                            notificações, relógio, conversas ouvidas e faixa de status
   utils/overlay.js         Balões e ícones desenhados por cima das árvores
   levels/places.js         Lugares do mapa usados nas rotinas, encontros e prompts
+  levels/maps.js           Mapas exportados do Tiled (gerado por scripts/export-maps.mjs)
+  levels/world.js          Vila + interiores numa só grade de colisão
+  world/TileMap.js         Desenha um mapa do Tiled tile a tile (e permite trocar tiles)
+  world/Interiors.js       Entrar e sair dos prédios, moradores lá dentro e luz interna
   levels/decor.js          Posições dos objetos do mapa (postes, moinho, poço, baús, plantação...)
   world/Village.js         Mapa vivo: estado do servidor, pegadas, luzes e interações (F)
   world/terrain.js         Lê os pixels do mapa e pré-desenha neve, outono, lama, espuma...

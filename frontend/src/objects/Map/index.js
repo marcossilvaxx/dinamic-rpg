@@ -12,8 +12,9 @@ export class Map extends GameObject {
     height,
     collisionGrid,
     tileSize,
+    position,
   }) {
-    super({});
+    super({ position });
 
     this.resource = resource;
     this.foregroundResource = foregroundResource;

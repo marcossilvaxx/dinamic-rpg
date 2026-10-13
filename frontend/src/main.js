@@ -2,7 +2,6 @@ import { sound } from "./audio/sound";
 import { GameLoop } from "./GameLoop";
 import { GameObject } from "./GameObject";
 import { Input } from "./Input";
-import { resources } from "./Resource";
 import {
   NPC_CONVERSATION_LANGUAGE,
   NUMBER_OF_NPCS,
@@ -19,7 +18,12 @@ import { placeBanner } from "./hud/PlaceBanner";
 import { notifications } from "./hud/Notifications";
 import { overhearLog } from "./hud/OverhearLog";
 import { statusBanner } from "./hud/StatusBanner";
-import { mapCollisions } from "./levels/map";
+import {
+  VILLAGE,
+  VILLAGE_HEIGHT,
+  VILLAGE_WIDTH,
+  worldCollisionRows,
+} from "./levels/world";
 import { PLACES, PLACES_BY_ID } from "./levels/places";
 import * as protocol from "./net/protocol";
 import { gameSocket } from "./net/socket";
@@ -36,9 +40,11 @@ import { NpcDirector } from "./systems/NpcDirector";
 import { scheduleFor } from "./systems/time";
 import { WeatherEffects } from "./systems/WeatherEffects";
 import { Vector2 } from "./utils/Vector2";
-import { parse2D } from "./utils/grid";
+import { CollisionGrid } from "./utils/collisionGrid";
 import { overlayLayer } from "./utils/overlay";
 import { pathfinder } from "./utils/pathfinding";
+import { Interiors } from "./world/Interiors";
+import { TileMap } from "./world/TileMap";
 import { Village } from "./world/Village";
 
 const canvas = document.querySelector("#game-canvas");
@@ -48,14 +54,17 @@ const mainScene = new GameObject({
   position: new Vector2(0, 0),
 });
 
+// The village is drawn tile by tile from the Tiled map (src/levels/maps.js)
+const villageTiles = new TileMap(VILLAGE);
 const map1 = new Map({
-  resource: resources.images.map,
-  foregroundResource: resources.images.foreground,
-  width: 70 * 12, // 12 is the tile size
-  height: 40 * 12,
-  collisionGrid: parse2D(mapCollisions, 70), // 70 -> Map width
-  tileSize: 12,
+  resource: villageTiles.background,
+  foregroundResource: villageTiles.foreground,
+  width: VILLAGE_WIDTH,
+  height: VILLAGE_HEIGHT,
 });
+
+// One collision grid for the village and the interiors (see levels/world.js)
+const collision = new CollisionGrid(worldCollisionRows(), 12);
 
 const camera = new Camera({
   mapWidth: map1.width,
@@ -72,13 +81,13 @@ mainScene.addChild(hero);
 
 mainScene.input = new Input();
 mainScene.player = hero;
-mainScene.collision = map1.collision;
+mainScene.collision = collision;
 mainScene.overhearLog = overhearLog;
 mainScene.debugMode = false;
 
 // Lamps, the windmill, the well... can't be walked through
-Village.blockProps(map1.collision);
-pathfinder.init(map1.collision);
+Village.blockProps(collision);
+pathfinder.init(collision);
 
 // Blocking overlay, only for connection errors. Loading progress is shown in
 // the status banner while the player can already walk around.
@@ -111,6 +120,16 @@ const setStatus = (text, { retry = false } = {}) => {
 const npcs = new globalThis.Map();
 mainScene.npcs = npcs;
 
+// Inside the buildings (F at the door)
+const interiors = new Interiors({
+  scene: mainScene,
+  hero,
+  npcs,
+  camera,
+  collision,
+  screen: { width: canvas.width, height: canvas.height },
+});
+
 // The living map: seasons, snow and mud, lights, animals, props and the
 // objects the player uses with F
 const village = new Village({
@@ -118,7 +137,8 @@ const village = new Village({
   map: map1,
   hero,
   npcs,
-  collision: map1.collision,
+  collision,
+  interiors,
   screen: { width: canvas.width, height: canvas.height },
 });
 
@@ -148,8 +168,10 @@ const weatherEffects = new WeatherEffects({
 const minimap = new Minimap({
   mapWidth: map1.width,
   mapHeight: map1.height,
-  getPlayer: () => hero.position,
+  getPlayer: () => interiors.mapPosition(hero),
   getNpcs: () => [...npcs.values()],
+  positionOf: (npc) => interiors.mapPosition(npc),
+  mapImage: villageTiles.background,
 });
 
 // Pause (P): the scene stops here and the time of the village stops in the
@@ -233,7 +255,7 @@ const npcSpawnPosition = (center = NPC_SPAWN) => {
     const x = Math.round(center.x + (Math.random() - 0.5) * 8 * 12);
     const y = Math.round(center.y + (Math.random() - 0.5) * 6 * 12);
 
-    if (!map1.collision.isBlocked(x, y, 16, 12)) {
+    if (!collision.isBlocked(x, y, 16, 12)) {
       return new Vector2(x, y);
     }
   }
@@ -273,7 +295,7 @@ const wakeUpInTavern = () => {
 // Fights between the player and the NPCs (Space attacks, Shift dodges)
 const fights = new FightManager({
   hero,
-  collision: map1.collision,
+  collision,
   npcs,
   onPlayerKnockedOut: wakeUpInTavern,
 });
@@ -473,6 +495,7 @@ const update = (delta) => {
   }
 
   mainScene.stepEntry(delta, mainScene);
+  interiors.step(delta, { fighting: fights.isFighting });
   village.step(delta);
   weatherEffects.step(delta);
   sound.updateAmbience(delta, {
@@ -500,15 +523,20 @@ const draw = () => {
 
   mainScene.draw(ctx, 0, 0);
   map1.foreground.draw(ctx, 0, 0);
-  village.drawTop(ctx); // Snow on the roofs, smoke, birds...
+  interiors.drawForeground(ctx);
+  if (!interiors.isInside) village.drawTop(ctx); // Snow on the roofs, smoke...
+
   overlayLayer.draw(ctx); // Speech bubbles and icons, over the trees
 
   ctx.restore();
 
-  // Day and night, with the lights of the village
-  village.drawLighting(ctx, camera);
-
-  weatherEffects.draw(ctx);
+  // Day and night, with the lights of the village (or of the room)
+  if (interiors.isInside) {
+    interiors.drawLighting(ctx, village.darkness, village.time);
+  } else {
+    village.drawLighting(ctx, camera);
+    weatherEffects.draw(ctx);
+  }
 
   clockHud.update();
 };
@@ -528,6 +556,7 @@ if (import.meta.env.DEV) {
     gameSocket,
     updateBandits,
     village,
+    interiors,
   };
 }
 

@@ -78,6 +78,8 @@ export class Npc extends GameObject {
     this.seeking = null;
     this.npcConversation = null; // Scene of a conversation with another NPC
     this.lineBubble = null;
+    // Inside a building: { interiorId, placeId, place } (see world/Interiors.js)
+    this.indoor = null;
     this.followTarget = null;
     this.followTimeLeft = null; // null -> follow until stopFollow()
     this.lastFollowedPosition = null;
@@ -460,8 +462,13 @@ export class Npc extends GameObject {
     this.idleTime = 6000;
   }
 
-  /** The place the NPC is going to or staying at. */
+  /** The place the NPC is going to or staying at (inside a building, a spot of it). */
   get routinePlace() {
+    return this.indoor?.place ?? this.outdoorPlace;
+  }
+
+  /** The place of the village the NPC is going to or staying at. */
+  get outdoorPlace() {
     // Bandits stay where they attacked
     if (this.data.bandit) {
       return this.routine[0] ?? null;
@@ -742,10 +749,14 @@ export class Npc extends GameObject {
       this.schedule.reason === null &&
       hour >= WORK_HOURS[0] &&
       hour < WORK_HOURS[1] &&
-      this.routinePlace === workplace;
+      this.outdoorPlace === workplace;
 
+    // Working at the door, or inside the building
     const atWork =
-      canWork && this.isAt(workplace) && !this.path && !this.isCalculatingPath;
+      canWork &&
+      this.isAt(this.routinePlace) &&
+      !this.path &&
+      !this.isCalculatingPath;
 
     // Works for a while, then walks around the workplace and works again
     if (atWork && !this.isWorking && this.idleTime > 0) {

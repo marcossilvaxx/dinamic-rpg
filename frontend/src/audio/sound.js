@@ -292,6 +292,18 @@ class Sound {
     this.tone({ frequency: 180, duration: 0.08, type: "square", volume: 0.04 });
   }
 
+  door() {
+    this.noise({ duration: 0.12, volume: 0.15, frequency: 400 });
+    this.tone({
+      frequency: 220,
+      slideTo: 140,
+      duration: 0.25,
+      type: "triangle",
+      volume: 0.04,
+      delay: 0.05,
+    });
+  }
+
   creak() {
     this.tone({
       frequency: 160,

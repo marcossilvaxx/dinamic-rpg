@@ -103,3 +103,41 @@ export function cropLook(crop, stage) {
     fruit: ripe ? (fruits[crop] ?? "#e05a3a") : null,
   };
 }
+
+/**
+ * Whether the player can go into a building. The tavern closes only late at
+ * night and the store opens during the day; a home needs someone awake to
+ * open the door, unless the player is a close friend of who lives there.
+ *
+ * @returns {{open: boolean, reason: "closed"|"nobody"|"sleeping"|null}}
+ */
+export function buildingAccess(
+  placeId,
+  hour,
+  { awakeInside, asleepInside, friend },
+) {
+  if (placeId === "tavern") {
+    return hour >= 2 && hour < 6
+      ? { open: false, reason: "closed" }
+      : { open: true, reason: null };
+  }
+
+  if (placeId === "east_house" && hour >= 7 && hour < 20) {
+    return { open: true, reason: null };
+  }
+
+  if (friend || (awakeInside > 0 && hour >= 7 && hour < 22)) {
+    return { open: true, reason: null };
+  }
+
+  return {
+    open: false,
+    reason: asleepInside > 0 || awakeInside > 0 ? "sleeping" : "nobody",
+  };
+}
+
+/** Light inside the buildings: dim during the day, dark at night. */
+export const interiorDarkness = (darknessOutside) => ({
+  color: [24, 14, 30],
+  alpha: 0.12 + darknessOutside * 0.55,
+});

@@ -9,6 +9,20 @@ export class Camera extends GameObject {
 
     this.mapWidth = mapWidth;
     this.mapHeight = mapHeight;
+    // Area the camera shows (the village, or the interior the player is in)
+    this.bounds = { x: 0, y: 0, width: mapWidth, height: mapHeight };
+  }
+
+  setBounds(bounds) {
+    this.bounds = bounds;
+  }
+
+  // Keeps the view inside the bounds (centered when they are smaller)
+  clamp(position, start, size, viewSize) {
+    const max = -start * SCALE;
+    const min = -(start + size) * SCALE + viewSize;
+
+    return min > max ? (min + max) / 2 : Math.min(max, Math.max(position, min));
   }
 
   ready() {
@@ -29,9 +43,11 @@ export class Camera extends GameObject {
         -heroPosition.y * SCALE + halfHeight
       );
 
+      const { x, y, width, height } = this.bounds;
+
       this.position = new Vector2(
-        Math.min(0, Math.max(newPosition.x, canvasWidth * -(SCALE - 1))),
-        Math.min(0, Math.max(newPosition.y, canvasHeight * -(SCALE - 1)))
+        this.clamp(newPosition.x, x, width, canvasWidth),
+        this.clamp(newPosition.y, y, height, canvasHeight)
       );
     });
   }
