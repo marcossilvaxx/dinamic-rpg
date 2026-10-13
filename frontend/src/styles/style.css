@@ -651,3 +651,63 @@ body .loading button {
   font-style: italic;
   color: #777;
 }
+
+#game-container .choice-menu {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 300px;
+  max-width: 90%;
+  padding: 14px 16px;
+  border: 2px solid #c9a46a;
+  border-radius: 8px;
+  background-color: rgba(30, 22, 18, 0.94);
+  color: #fff4d6;
+  z-index: 4;
+}
+
+#game-container .choice-menu.visible {
+  display: flex;
+}
+
+#game-container .choice-menu h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+#game-container .choice-menu button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border: 1px solid #6e5238;
+  border-radius: 4px;
+  background-color: #4a3526;
+  color: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+#game-container .choice-menu button:hover:not(:disabled) {
+  background-color: #6e4e36;
+}
+
+#game-container .choice-menu button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+#game-container .choice-menu small {
+  opacity: 0.8;
+}
+
+#game-container .choice-menu p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  opacity: 0.7;
+}

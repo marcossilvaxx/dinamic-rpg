@@ -1,4 +1,5 @@
-// Converts the Tiled maps (tiled/*.tmx and tiled/interiors/*.tmx) into
+// Converts the Tiled maps (tiled/*.tmx, tiled/interiors/*.tmx and
+// tiled/regions/*.tmx) into
 // src/levels/maps.js, which the game draws tile by tile.
 //
 //   npm run maps
@@ -120,11 +121,11 @@ function readMap(tmxPath) {
 }
 
 const maps = { village: readMap(join(root, "tiled/game-test-map.tmx")) };
-const interiorsDir = join(root, "tiled/interiors");
-for (const file of readdirSync(interiorsDir).filter((f) =>
-  f.endsWith(".tmx"),
-)) {
-  maps[basename(file, ".tmx")] = readMap(join(interiorsDir, file));
+for (const folder of ["interiors", "regions"]) {
+  const dir = join(root, "tiled", folder);
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".tmx"))) {
+    maps[basename(file, ".tmx")] = readMap(join(dir, file));
+  }
 }
 
 // One line per layer keeps the file readable in diffs

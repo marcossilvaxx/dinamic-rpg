@@ -1,3 +1,5 @@
+import { REGIONS } from "../game/Regions.js";
+
 // Contexto do mundo que abre TODOS os prompts gerados depois da criação do
 // mundo. Por ser idêntico em todas as chamadas da partida, a OpenAI reaproveita
 // esse prefixo (prompt caching) e cobra os tokens dele com ~90% de desconto.
@@ -13,6 +15,11 @@ export const describePlaces = (places) =>
         )
         .join("\n")
     : "- (no specific places)";
+
+export const describeRegions = () =>
+  Object.values(REGIONS)
+    .map(({ name, prompt }) => `- ${name}: ${prompt}`)
+    .join("\n");
 
 export const describeVillagers = (villagers) =>
   villagers
@@ -36,6 +43,12 @@ ${worldHistory}
 These are the places that exist in the village map:
 
 ${describePlaces(places)}
+
+# Beyond the island
+
+By boat from the pier, half an hour away:
+
+${describeRegions()}
 
 # Villagers
 
