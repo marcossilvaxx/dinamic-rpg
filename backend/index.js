@@ -298,6 +298,12 @@ const handlers = {
     session.setPaused(data?.paused === true);
   },
 
+  async [protocol.INTERACT](ws, { session }, { data }) {
+    const objectId = String(data?.objectId ?? "").slice(0, 40);
+    const result = await session.interact(objectId);
+    send(ws, protocol.INTERACT_RESULT, { data: { objectId, ...result } });
+  },
+
   async [protocol.ACTIVITY](ws, { session }, { data }) {
     const result = session.doActivity(data?.kind, data?.result);
     send(ws, protocol.ACTIVITY_RESULT, { data: result });

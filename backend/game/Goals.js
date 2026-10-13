@@ -57,6 +57,12 @@ export class Goals {
     session.changeMood(npcId, 3);
     session.addNews(`${npc.data.name} realizou um sonho: ${achieved}`);
     session.notify(`${npc.data.name} realizou um sonho!`, "good");
+
+    // ... and builds something in the village
+    const structure = session.villageMap.addStructureForGoal(npcId, achieved);
+    if (structure) {
+      session.notify(`Novidade na vila: ${structure.label}`, "good");
+    }
     session.emitPlayerState();
     await session.rememberAll(
       `[village news] ${npc.data.name} achieved their goal: ${achieved}`,

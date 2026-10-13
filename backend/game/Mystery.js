@@ -270,7 +270,8 @@ Share it when the traveler asks about it or about strange things in the village 
           : null,
       testimonies: this.testimonies.map(({ npcId, text, time }) => ({
         npcId,
-        name: nameOf(npcId),
+        // 0: something the player found by themselves (footprints)
+        name: npcId === 0 ? "Pegadas" : nameOf(npcId),
         text,
         time,
       })),

@@ -4,7 +4,7 @@
 // player.
 
 import { COINS, MAX_ITEMS_PER_GIFT, itemKey } from "./PlayerState.js";
-import { seasonalPriceFactor } from "./seasons.js";
+import { isFood, seasonalPriceFactor } from "./seasons.js";
 import { findWare, priceFor } from "./shop.js";
 
 export const RESTOCK_HOUR = 6;
@@ -63,12 +63,22 @@ export class Commerce {
     return event.factor;
   }
 
+  /** Season, market events and the last harvest (food). */
+  priceFactor(npcId, item) {
+    const harvest = isFood(item)
+      ? (this.session.villageMap?.foodPriceFactor() ?? 1)
+      : 1;
+
+    return (
+      seasonalPriceFactor(item, this.session.season) *
+      this.marketFactor(npcId) *
+      harvest
+    );
+  }
+
   /** Price of one unit of `ware` for the player. */
   priceOf(npcId, ware) {
-    const base =
-      ware.price *
-      seasonalPriceFactor(ware.item, this.session.season) *
-      this.marketFactor(npcId);
+    const base = ware.price * this.priceFactor(npcId, ware.item);
 
     return priceFor(base, this.session.player.getReputation(npcId));
   }
@@ -76,9 +86,7 @@ export class Commerce {
   /** What the NPC sells: price for the player, stock and price trend. */
   waresFor(npcId) {
     return this.wares(npcId).map((ware) => {
-      const factor =
-        this.marketFactor(npcId) *
-        seasonalPriceFactor(ware.item, this.session.season);
+      const factor = this.priceFactor(npcId, ware.item);
 
       return {
         item: ware.item,

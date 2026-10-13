@@ -80,13 +80,14 @@ const describeSituation = ({
   investigator = null,
   defender = null,
   raid = null,
+  surroundings = null,
   inventory,
   quests,
   mystery,
   wares = [],
 }) => `# Right now
 
-It is ${time} (${period}). You are ${mood}, ${needs.energy} and ${needs.hunger}.${needs.asleep ? " You were sleeping and the traveler just woke you up." : ""}${weather ? ` Weather: ${weather}.` : ""}${season ? ` Season: ${season}.` : ""}${festival ? `\nToday's gathering of the village: ${festival} The traveler may invite you to go together (acceptInvitation if you want).` : ""}${visitor ? `\n${visitor}` : ""}${family ? `\n${family}` : ""}${injury ? `\n${injury}` : ""}${raid ? `\n${raid}` : ""}${goal ? `\nYour personal goal these days: ${goal}. It is on your mind: you may talk about it, and ask the traveler for help with it (giveQuest).` : ""}
+It is ${time} (${period}). You are ${mood}, ${needs.energy} and ${needs.hunger}.${needs.asleep ? " You were sleeping and the traveler just woke you up." : ""}${weather ? ` Weather: ${weather}.` : ""}${season ? ` Season: ${season}.` : ""}${festival ? `\nToday's gathering of the village: ${festival} The traveler may invite you to go together (acceptInvitation if you want).` : ""}${visitor ? `\n${visitor}` : ""}${family ? `\n${family}` : ""}${injury ? `\n${injury}` : ""}${raid ? `\n${raid}` : ""}${surroundings ? `\nAround the village: ${surroundings}` : ""}${goal ? `\nYour personal goal these days: ${goal}. It is on your mind: you may talk about it, and ask the traveler for help with it (giveQuest).` : ""}
 
 # Your opinion of the traveler
 

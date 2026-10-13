@@ -20,6 +20,7 @@ import { Quests } from "./Quests.js";
 import { SeekPlanner } from "./Seeking.js";
 import { VillageBuilder } from "./VillageBuilder.js";
 import { VillageLife } from "./VillageLife.js";
+import { VillageMap } from "./VillageMap.js";
 import { Visitors } from "./Visitors.js";
 
 // Old facts are written in the diary in batches of this size
@@ -51,6 +52,8 @@ const STATE_VERSION = 1;
  * - family:        couples, weddings and children
  * - visitors:      visitors that spend a day in the village
  * - activities:    fishing and gathering
+ * - villageMap:    farm field, snow and mud, wrecks, buildings, footprints
+ *                  and the objects of the map
  */
 export class GameSession {
   constructor({
@@ -97,6 +100,7 @@ export class GameSession {
     this.activities = new Activities(this);
     this.combat = new Combat(this);
     this.bandits = new Bandits(this);
+    this.villageMap = new VillageMap(this);
 
     this.paused = false;
     this.moods = new Map(); // npcId -> -5..5
@@ -342,6 +346,7 @@ export class GameSession {
       investigator: this.investigation.reputationAsInvestigator,
       defender: this.combat.title,
       raid: this.bandits.describe(),
+      surroundings: this.villageMap.describe(),
       bond: this.bonds.describeFor(npcId),
       companion: this.playerChat.describeCompanion(npcId),
       goal: this.goals.describeFor(npcId),
@@ -549,6 +554,11 @@ export class GameSession {
     return { ok: true, item, heal };
   }
 
+  /** The player uses an object of the map (F): well, chest, crops... */
+  interact(objectId) {
+    return this.villageMap.interact(objectId);
+  }
+
   doActivity(kind, result) {
     return this.activities.perform(kind, result);
   }
@@ -610,6 +620,9 @@ export class GameSession {
       await this.visitors.update(day, hour);
       this.combat.update(now);
       await this.bandits.update(day, hour, now);
+      if (await this.villageMap.update(now, day, hour)) {
+        this.emitWorldState();
+      }
       this.save();
     } finally {
       this.isTicking = false;
@@ -702,6 +715,7 @@ export class GameSession {
       activities: this.activities.toState(),
       combat: this.combat.toState(),
       bandits: this.bandits.toState(),
+      villageMap: this.villageMap.toState(),
     };
   }
 
@@ -765,6 +779,7 @@ export class GameSession {
     this.activities.restoreState(state.activities);
     if (state.combat) this.combat.restoreState(state.combat);
     if (state.bandits) this.bandits.restoreState(state.bandits);
+    if (state.villageMap) this.villageMap.restoreState(state.villageMap);
   }
 
   /** Stops the session; `forget` also deletes it from Redis. */

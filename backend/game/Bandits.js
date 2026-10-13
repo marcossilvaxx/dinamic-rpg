@@ -122,6 +122,7 @@ export class Bandits {
   /** The raid is over: beaten by the player, or the bandits left. */
   async end(defeated) {
     const { session } = this;
+    const placeId = this.raid?.placeId ?? null;
     this.raid = null;
 
     if (defeated) {
@@ -157,6 +158,9 @@ export class Bandits {
           session.commerce.changeStock(victim.id, ware.item, -99);
         }
       }
+
+      // They leave a mess behind (the player can help to repair it)
+      session.villageMap.addWrecks(placeId, victim?.id ?? null);
 
       session.npcs.forEach((_, id) => session.changeMood(id, -1));
       const text = victim

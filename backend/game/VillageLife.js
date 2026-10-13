@@ -75,6 +75,7 @@ export class VillageLife {
     return {
       weather: this.weather.current,
       raid: this.session.bandits?.toJSON() ?? null,
+      map: this.session.villageMap?.toJSON() ?? null,
       season: this.season,
       seasonLabel: SEASON_INFO[this.season].label,
       festival: festival && {
@@ -83,6 +84,7 @@ export class VillageLife {
         description: festival.description,
         placeId: festival.placeId,
         placeName: this.placeName(festival.placeId),
+        wedding: Boolean(festival.wedding),
         startHour: FESTIVAL_START_HOUR,
         endHour: FESTIVAL_END_HOUR,
         status: festival.status,
@@ -185,6 +187,13 @@ export class VillageLife {
 
       if (festival.wedding) {
         await session.family.marry(...festival.wedding);
+        // The arch of the wedding stays up for a day
+        session.villageMap.addStructure({
+          kind: "wedding_arch",
+          placeId: festival.placeId,
+          label: festival.title,
+          until: session.clock.totalMinutes + 24 * 60,
+        });
       }
     }
 
