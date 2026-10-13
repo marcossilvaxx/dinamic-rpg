@@ -1,5 +1,7 @@
 import { GameObject } from "../GameObject";
 import { FARM_PLOTS, FISH_SPOTS } from "../levels/decor";
+import { VILLAGE } from "../levels/world";
+import { GRASS_PIXEL, seededRandom } from "./terrain";
 import { cropLook } from "./rules";
 
 const SEASONS = ["spring", "summer", "autumn", "winter"];
@@ -20,6 +22,45 @@ export class GroundLayer extends GameObject {
   constructor(village) {
     super({});
     this.village = village;
+    this.wearCanvas = null;
+    this.wearKey = "";
+  }
+
+  /** Dirt where the grass is worn (redrawn when the server changes it). */
+  wearLayer() {
+    const { terrain, terrainState } = this.village;
+    const key = JSON.stringify(terrainState.wear);
+
+    if (key === this.wearKey && this.wearCanvas) return this.wearCanvas;
+
+    this.wearKey = key;
+    this.wearCanvas ??= document.createElement("canvas");
+    this.wearCanvas.width = terrain.width;
+    this.wearCanvas.height = terrain.height;
+    const ctx = this.wearCanvas.getContext("2d");
+    const colors = ["#b98e5c", "#a87d50", "#c9a070"];
+
+    for (const [index, wear] of terrainState.wear) {
+      const x0 = (index % VILLAGE.width) * 12;
+      const y0 = Math.floor(index / VILLAGE.width) * 12;
+      const random = seededRandom(index + 1);
+      const coverage = Math.min(1, wear / 70);
+
+      for (let y = y0; y < y0 + 12; y++) {
+        for (let x = x0; x < x0 + 12; x++) {
+          if (terrain.classAt(x, y) !== GRASS_PIXEL) continue;
+          // Ragged edges: the middle of the tile wears out first
+          const edge =
+            Math.max(Math.abs(x - x0 - 5.5), Math.abs(y - y0 - 5.5)) / 6;
+          if (random() > coverage * (1.2 - edge * 0.6)) continue;
+          ctx.globalAlpha = 0.55 + 0.35 * coverage;
+          ctx.fillStyle = colors[Math.floor(random() * colors.length)];
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+
+    return this.wearCanvas;
   }
 
   drawImage(ctx) {
@@ -40,6 +81,7 @@ export class GroundLayer extends GameObject {
       draw(layers[SEASON_LAYERS[season]], village.seasonWeights[season]);
     }
     ctx.globalAlpha = 1;
+    if (village.terrainState.wear.length) ctx.drawImage(this.wearLayer(), 0, 0);
     this.drawFarm(ctx);
     draw(layers.mud, village.ground.wet * 0.55);
     draw(layers.snowGround, village.ground.snow);
@@ -135,7 +177,7 @@ export class GroundLayer extends GameObject {
   drawFarm(ctx) {
     const { farm } = this.village;
 
-    for (const plot of FARM_PLOTS) {
+    for (const plot of FARM_PLOTS.slice(0, farm?.plots ?? 6)) {
       const { x, y, width, height, index } = plot;
       // Tilled soil
       ctx.fillStyle = "#7a5233";

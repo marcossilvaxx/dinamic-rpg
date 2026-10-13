@@ -12,6 +12,7 @@ import {
   WOODPILE,
 } from "../levels/decor";
 import { PLACES_BY_ID, PLACE_RADIUS, nearestPlace } from "../levels/places";
+import { VILLAGE } from "../levels/world";
 import * as protocol from "../net/protocol";
 import { gameSocket } from "../net/socket";
 import { worldState } from "../state/worldState";
@@ -23,6 +24,7 @@ import { Ambient } from "./Ambient";
 import { GroundLayer } from "./GroundLayer";
 import { Lighting } from "./Lighting";
 import { Props } from "./Props";
+import { VILLAGE_BOAT } from "./Regions";
 import {
   campfireLit,
   isDaytime,
@@ -30,6 +32,7 @@ import {
   windmillSpeed,
   windowsLit,
 } from "./rules";
+import { burnedHouse } from "./sprites";
 import { analyzeTerrain } from "./terrain";
 
 const SEASONS = ["spring", "summer", "autumn", "winter"];
@@ -40,6 +43,9 @@ const INTERACT_DISTANCE = 16;
 const FOOTPRINT_STEP = 7; // px walked between two footprints
 const FOOTPRINT_MS = { snow: 60000, mud: 30000 };
 const MAX_FOOTPRINTS = 400;
+// Worn paths: where people are is sampled and sent to the server
+const WEAR_SAMPLE_MS = 500;
+const WEAR_REPORT_MS = 20000;
 
 const approach = (value, target, amount) =>
   value +
@@ -59,11 +65,22 @@ export class Village {
    * @param {Map<number, import("../objects/Npc").Npc>} options.npcs
    * @param {import("../utils/collisionGrid").CollisionGrid} options.collision
    * @param {import("./Interiors").Interiors} options.interiors
+   * @param {import("./Regions").Regions} options.regions
    * @param {{width: number, height: number}} options.screen
    */
-  constructor({ scene, map, hero, npcs, collision, interiors, screen }) {
+  constructor({
+    scene,
+    map,
+    hero,
+    npcs,
+    collision,
+    interiors,
+    regions,
+    screen,
+  }) {
     this.map = map;
     this.interiors = interiors;
+    this.regions = regions;
     this.hero = hero;
     this.npcs = npcs;
     this.collision = collision;
@@ -76,6 +93,10 @@ export class Village {
     this.lastSteps = new Map(); // character -> { x, y, left }
     this.tracks = null; // { key, points, inspected }
     this.lastGathering = -Infinity; // Game minute
+    this.wearBuffer = new Map(); // tile index -> steps
+    this.wearTiles = new Map(); // character -> last tile
+    this.timeToWearSample = WEAR_SAMPLE_MS;
+    this.timeToWearReport = WEAR_REPORT_MS;
 
     map.addChild(new GroundLayer(this));
     this.props = new Props({ scene, village: this });
@@ -118,6 +139,15 @@ export class Village {
 
   get farm() {
     return this.mapState?.farm ?? null;
+  }
+
+  get terrainState() {
+    return worldState.state.terrain ?? { wear: [], burned: [] };
+  }
+
+  /** Burned building of the place ({ placeId, progress }), if any. */
+  burnedAt(placeId) {
+    return this.terrainState.burned.find((fire) => fire.placeId === placeId);
   }
 
   get emptyChests() {
@@ -169,6 +199,7 @@ export class Village {
     this.windmillAngle += windmillSpeed(this.weather) * delta;
 
     this.updateFootprints(delta);
+    this.updateWear(delta);
     this.updateTracks();
     this.props.sync({
       festival: worldState.festival,
@@ -246,6 +277,45 @@ export class Village {
     }
   }
 
+  /** Where people walk the grass wears out (see backend game/Terrain.js). */
+  updateWear(delta) {
+    this.timeToWearSample -= delta;
+    this.timeToWearReport -= delta;
+
+    if (this.timeToWearSample <= 0) {
+      this.timeToWearSample = WEAR_SAMPLE_MS;
+
+      for (const character of [this.hero, ...this.npcs.values()]) {
+        if (character.indoor || character.data?.bandit) continue;
+        const column = Math.floor((character.position.x + 8) / 12);
+        const row = Math.floor((character.position.y + 10) / 12);
+        if (
+          column < 0 ||
+          row < 0 ||
+          column >= VILLAGE.width ||
+          row >= VILLAGE.height
+        ) {
+          continue;
+        }
+        const tile = row * VILLAGE.width + column;
+        if (this.wearTiles.get(character) !== tile) {
+          this.wearTiles.set(character, tile);
+          this.wearBuffer.set(tile, (this.wearBuffer.get(tile) ?? 0) + 1);
+        }
+      }
+    }
+
+    if (this.timeToWearReport <= 0) {
+      this.timeToWearReport = WEAR_REPORT_MS;
+      if (this.wearBuffer.size) {
+        gameSocket.send(protocol.WEAR, {
+          data: { tiles: [...this.wearBuffer] },
+        });
+        this.wearBuffer.clear();
+      }
+    }
+  }
+
   /** Footprints of the mystery: a path between two places. */
   updateTracks() {
     const tracks = this.mapState?.tracks ?? null;
@@ -304,6 +374,11 @@ export class Village {
         ctx.drawImage(terrain.layers.snowForeground, 0, 0);
       }
       ctx.restore();
+    }
+
+    for (const { placeId, area } of BUILDINGS) {
+      const fire = this.burnedAt(placeId);
+      if (fire) burnedHouse(ctx, area, fire.progress, this.time);
     }
 
     this.ambient.drawSky(ctx);
@@ -381,12 +456,19 @@ export class Village {
   interactionAt(position) {
     // Inside a building only the door matters
     if (this.interiors.isInside) {
-      return this.interiors.isAtExit(position, 14)
-        ? { label: "Sair", run: () => this.interiors.exit() }
-        : null;
+      return this.interiors.interactionAt(position);
+    }
+    if (this.regions.isAway) {
+      return this.regions.interactionAt(position);
     }
 
     const feet = { x: position.x + 8, y: position.y + 10 };
+    if (Math.hypot(feet.x - VILLAGE_BOAT.x, feet.y - VILLAGE_BOAT.y) <= 16) {
+      return {
+        label: "Viajar de barco",
+        run: () => this.regions.openTravelMenu(),
+      };
+    }
     const near = (x, y, distance = INTERACT_DISTANCE) =>
       Math.hypot(feet.x - x, feet.y - y) <= distance;
     const server = (objectId) => () => this.interact(objectId);
@@ -410,7 +492,7 @@ export class Village {
 
     const { farm } = this;
     if (farm?.crop && farm.stage >= 4) {
-      for (const plot of FARM_PLOTS) {
+      for (const plot of FARM_PLOTS.slice(0, farm.plots ?? 6)) {
         const inside =
           feet.x >= plot.x - 4 &&
           feet.x <= plot.x + plot.width + 4 &&
@@ -456,6 +538,13 @@ export class Village {
 
     for (const { placeId, door } of BUILDINGS) {
       if (near(door.x, door.y + 4, 14)) {
+        if (this.burnedAt(placeId)) {
+          return {
+            label: "Ajudar na reconstrução (2 lenha)",
+            run: server(`rebuild:${placeId}`),
+          };
+        }
+
         const access = this.interiors.access(placeId);
         return access.open
           ? { label: "Entrar", run: () => this.interiors.enter(placeId) }

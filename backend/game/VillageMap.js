@@ -15,7 +15,9 @@ export const MAP_OBJECTS = {
   chest_south: "chest",
   chest_east: "chest",
 };
+// The field starts with some plots; good harvests make the villagers open more
 export const FARM_PLOTS = 6;
+export const MAX_FARM_PLOTS = 9;
 // Game hours of growth for each stage of the crops (0 = seeds, 4 = ripe)
 const HOURS_PER_STAGE = 5;
 export const RIPE_STAGE = 4;
@@ -114,10 +116,11 @@ export function rollChest(random = Math.random) {
   return { item, quantity: item === COINS ? 5 + Math.floor(random() * 11) : 1 };
 }
 
-const newFarm = () => ({
+const newFarm = (plots = FARM_PLOTS) => ({
   hours: 0,
   quality: 3, // 1..5
-  harvested: Array(FARM_PLOTS).fill(false),
+  plots,
+  harvested: Array(plots).fill(false),
   helped: false,
   lastRainDay: 0,
   lastStormDay: 0,
@@ -217,7 +220,7 @@ export class VillageMap {
     const { farm } = this;
 
     if (!this.crop) {
-      this.farm = newFarm();
+      this.farm = newFarm(this.farm.plots);
       return;
     }
 
@@ -250,7 +253,17 @@ export class VillageMap {
 
     this.lastHarvestDay = day;
     this.harvestFactor = HARVEST_FACTORS[result] ?? 1;
-    this.farm = newFarm();
+    const plots = this.farm.plots ?? FARM_PLOTS;
+    const grows = result === "good" && plots < MAX_FARM_PLOTS;
+    this.farm = newFarm(grows ? plots + 1 : plots);
+
+    if (grows) {
+      session.notify(
+        "Animados com a colheita, os moradores abriram mais um canteiro.",
+        "good",
+      );
+      session.addNews("Os moradores abriram mais um canteiro na plantação");
+    }
 
     const text = {
       good: `Colheita farta de ${crop}: a comida ficou mais barata`,
@@ -456,7 +469,9 @@ export class VillageMap {
   async harvestPlot(index) {
     const { session, farm } = this;
 
-    if (!(index >= 0 && index < FARM_PLOTS)) throw new Error("Invalid plot");
+    if (!(index >= 0 && index < farm.harvested.length)) {
+      throw new Error("Invalid plot");
+    }
 
     if (!this.isRipe || farm.harvested[index]) {
       return {
@@ -579,6 +594,7 @@ export class VillageMap {
         crop: this.crop,
         stage: this.stage,
         quality: this.farm.quality,
+        plots: this.farm.harvested.length,
         harvested: [...this.farm.harvested],
       },
       wrecks: this.wrecks.map(({ id, kind, placeId }) => ({

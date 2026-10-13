@@ -13,6 +13,7 @@ export const PLACES = [
       "The tavern, the building in the north of the village, by the main road. People eat, drink and talk there.",
     x: 508,
     y: 162,
+    building: true,
   },
   {
     id: "west_house",
@@ -21,6 +22,7 @@ export const PLACES = [
       "A cottage in the northwest of the village, near the cliffs, at the end of the west road. A villager lives there.",
     x: 148,
     y: 140,
+    building: true,
   },
   {
     id: "east_house",
@@ -29,6 +31,7 @@ export const PLACES = [
       "The general store, the house in the east of the village, where people buy tools, food and supplies.",
     x: 688,
     y: 272,
+    building: true,
   },
   {
     id: "garden",

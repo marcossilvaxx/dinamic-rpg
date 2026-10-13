@@ -485,3 +485,74 @@ export function butterfly(ctx, x, y, frame, color) {
     rect(ctx, color, x + 1, y - 1, 1, 2);
   }
 }
+
+/**
+ * A house burned by the bandits: charred roof, broken windows and, while it
+ * is rebuilt (`progress` 0..100), scaffolding and new planks.
+ */
+export function burnedHouse(ctx, area, progress, t) {
+  const { x, y, width, height } = area;
+  const repaired = progress / 100;
+
+  // Soot over the roof and the walls (fewer stains as it is repaired)
+  for (let i = 0; i < 46; i++) {
+    const sx = x + 4 + ((i * 37) % (width - 8));
+    const sy = y + 8 + ((i * 53) % (height - 20));
+    const size = 3 + (i % 4);
+    if ((i % 10) / 10 < repaired) continue;
+    rect(
+      ctx,
+      `rgba(30, 20, 22, ${0.55 + (i % 3) * 0.12})`,
+      sx,
+      sy,
+      size,
+      size - 1,
+    );
+  }
+
+  // Holes in the roof with a glow of embers at the start
+  const embers = Math.max(0, 1 - repaired * 3);
+  for (const [dx, dy] of [
+    [12, 18],
+    [30, 26],
+    [20, 34],
+  ]) {
+    rect(ctx, "#1a1214", x + dx, y + dy, 5, 4);
+    if (embers > 0 && Math.sin(t / 200 + dx) > 0) {
+      rect(ctx, `rgba(255, 120, 40, ${embers})`, x + dx + 1, y + dy + 1, 2, 2);
+    }
+  }
+
+  // Scaffolding while it is rebuilt
+  if (progress > 0) {
+    rect(ctx, WOOD_DARK, x - 2, y + 30, 2, height - 30);
+    rect(ctx, WOOD_DARK, x + width, y + 30, 2, height - 30);
+    for (let level = 0; level < 3; level++) {
+      rect(ctx, WOOD, x - 3, y + 34 + level * 14, width + 6, 2);
+    }
+    // New planks on the roof
+    const planks = Math.round((width / 6) * repaired);
+    for (let i = 0; i < planks; i++) {
+      rect(ctx, WOOD_LIGHT, x + 4 + i * 6, y + 40, 5, 2);
+    }
+  }
+}
+
+/** A tent of the bandits' camp. */
+export function tent(ctx, x, y) {
+  rect(ctx, "rgba(0,0,0,0.25)", x - 14, y - 2, 28, 3);
+  for (let row = 0; row < 16; row++) {
+    const half = Math.round(row * 0.85) + 1;
+    rect(
+      ctx,
+      row % 3 === 0 ? "#6b5a3e" : "#857049",
+      x - half,
+      y - 17 + row,
+      half * 2,
+      1,
+    );
+  }
+  rect(ctx, "#2a2018", x - 3, y - 9, 6, 8);
+  rect(ctx, WOOD_DARK, x - 1, y - 20, 2, 4);
+  rect(ctx, "#8a2b2b", x + 1, y - 20, 4, 2);
+}

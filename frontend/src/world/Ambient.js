@@ -455,12 +455,24 @@ export class Ambient {
   stepSmoke(delta) {
     const { hour, season, weather, time } = this.village;
     const wind = windOf(weather);
-    const sources = BUILDINGS.map(({ placeId, chimney }) => ({
-      id: placeId,
-      x: chimney.x,
-      y: chimney.y - 10,
-      rate: smokeRate(placeId, hour, season),
-    }));
+    const burned = this.village.terrainState.burned;
+    const sources = BUILDINGS.map(({ placeId, chimney, area }) => {
+      const fire = burned.find((candidate) => candidate.placeId === placeId);
+      // A burned house smokes from its roof until it is rebuilt
+      return fire
+        ? {
+            id: placeId,
+            x: area.x + area.width / 2 + (Math.random() - 0.5) * 20,
+            y: area.y + 20,
+            rate: 4 * (1 - fire.progress / 100) + 0.5,
+          }
+        : {
+            id: placeId,
+            x: chimney.x,
+            y: chimney.y - 10,
+            rate: smokeRate(placeId, hour, season),
+          };
+    });
 
     if (campfireLit(hour, weather)) {
       sources.push({

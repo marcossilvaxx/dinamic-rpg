@@ -12,6 +12,8 @@ export const BANDIT_FIRST_ID = 200;
 const RAID_PLACES = ["east_meadow", "south_road", "north_meadow"];
 const BANDIT_SPRITES = ["ninjaM", "warriorM", "rangerM", "ninjaF"];
 const VICTORY_REPUTATION = 2;
+// Chance of the bandits setting the victim's home on fire
+const FIRE_CHANCE = 0.5;
 // What the bandits may leave behind
 const LOOT = ["adaga", "moedas", "moedas", "escudo de couro"];
 
@@ -72,7 +74,7 @@ export class Bandits {
       session.places.find((candidate) => candidate.id === placeId)?.name ??
       "a vila";
     session.notify(
-      `Bandidos estão atacando a vila (${place})! Os moradores se escondem.`,
+      `Bandidos vindos da Floresta Sombria estão atacando a vila (${place})! Os moradores se escondem.`,
       "bad",
     );
     session.addNews(`${count} bandidos invadiram a vila pelo ${place}`);
@@ -120,7 +122,7 @@ export class Bandits {
   }
 
   /** The raid is over: beaten by the player, or the bandits left. */
-  async end(defeated) {
+  async end(defeated, random = Math.random) {
     const { session } = this;
     const placeId = this.raid?.placeId ?? null;
     this.raid = null;
@@ -161,6 +163,12 @@ export class Bandits {
 
       // They leave a mess behind (the player can help to repair it)
       session.villageMap.addWrecks(placeId, victim?.id ?? null);
+
+      // ... and sometimes set the victim's home on fire
+      const home = victim?.data.routine?.[0];
+      if (home && session.isBuilding(home) && random() < FIRE_CHANCE) {
+        session.terrain.burn(home);
+      }
 
       session.npcs.forEach((_, id) => session.changeMood(id, -1));
       const text = victim
