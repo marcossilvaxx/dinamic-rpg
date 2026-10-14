@@ -15,6 +15,7 @@ import {
 } from "./encounters";
 import { gameClock } from "./GameClock";
 import { isFestivalTime } from "./time";
+import { REGIONS_BY_ID } from "../levels/world";
 
 const randomBetween = ([min, max]) => min + Math.random() * (max - min);
 
@@ -258,8 +259,15 @@ export class NpcDirector extends GameObject {
 
     this.timeSinceCheck = 0;
 
+    // People of the town only talk while the player is there (each talk
+    // costs a call to the model)
+    const town = REGIONS_BY_ID.town;
+    const playerInTown =
+      this.player.position.x >= town.origin.x &&
+      this.player.position.x < town.origin.x + town.width;
     const candidates = [...this.npcs.values()]
       .filter((npc) => npc.isAvailableForConversation())
+      .filter((npc) => npc.data.region !== "town" || playerInTown)
       .map((npc) => {
         // NPCs start together, so they wait a bit before the first talk
         if (!this.cooldowns.has(npc.id)) {

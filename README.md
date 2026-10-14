@@ -156,7 +156,7 @@ O jogo já roda enquanto o mundo é gerado: o mapa aparece na hora, e os morador
 **Viagens de barco:** no píer, **F - Viajar de barco** leva (em meia hora de jogo) a:
 - **Floresta Sombria:** árvores para cortar com um machado (viram toco e crescem de novo em 2 dias), arbustos com cogumelos e frutas e o acampamento dos bandidos. Derrotar os vigias libera o baú deles e adia o próximo ataque à vila.
 - **Mina do Penhasco:** escura (sua lanterna e as tochas iluminam), com pedras de minério de ferro e carvão e cristais raros, extraídos com uma picareta.
-- **Vila de Pedravento:** uma praça com comerciantes que vendem machado, picareta, armas e comida, e compram minério, cristais, lenha e o que você colhe.
+- **Vila de Pedravento:** uma praça com comerciantes que vendem machado, picareta, armas e comida, e compram minério, cristais, lenha e o que você colhe. Na primeira visita, o modelo cria três moradores da cidade (com ofício, história e segredos), que conversam com você como os da vila e sabem das notícias da ilha.
 
 Os moradores sabem desses lugares e podem pedir coisas que só se acham lá.
 
@@ -203,7 +203,7 @@ As regiões visitadas de barco são geradas da mesma forma, com a mesma semente 
 
 - **Floresta:** praia com píer, uma trilha sinuosa até a clareira do acampamento dos bandidos (barracas, fogueira, caixotes e o baú), árvores para cortar ao longo da trilha, arbustos para colher, cogumelos e mata fechada ao redor.
 - **Mina:** uma caverna com formato próprio a cada partida, com o túnel de entrada, paredes de rocha, tochas, pedregulhos, pedras de minério e cristais junto às paredes.
-- **Pedravento:** porto, uma praça de pedra com chafariz, as barracas dos comerciantes, postes e três prédios (taverna, ferraria, loja ou casa) gerados como os da ilha.
+- **Pedravento:** porto, uma praça de pedra com chafariz, as barracas dos comerciantes, postes e três prédios (taverna, ferraria, loja ou casa) gerados como os da ilha. Os moradores criados pelo modelo nascem na praça.
 
 Os pontos de cada região (`tree_N`, `ore_N`, `crystal_N`, `forage_N`, `camp_chest`, `merchant_*`...) têm os nomes que o servidor já conhece. Árvores, pedras, cristais e arbustos são desenhados por cima do mapa e mudam quando são usados (toco, entulho, cristal arrancado, arbusto vazio) até voltarem a crescer. Os testes geram as regiões de várias sementes e conferem que tudo pode ser alcançado a partir do barco (`ISLAND_SEEDS=N npm test` testa mais sementes).
 

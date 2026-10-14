@@ -20,8 +20,10 @@ import { notifications } from "./hud/Notifications";
 import { overhearLog } from "./hud/OverhearLog";
 import { statusBanner } from "./hud/StatusBanner";
 import {
+  REGIONS_BY_ID,
   VILLAGE_HEIGHT,
   VILLAGE_WIDTH,
+  interiorPoint,
   worldCollisionRows,
 } from "./levels/world";
 import { PLACES, PLACES_BY_ID } from "./levels/places";
@@ -353,6 +355,16 @@ const addNpc = ({ id, data }) => {
     return;
   }
 
+  // People of the town live there (they don't come to the island)
+  if (data.region === "town") {
+    const square = interiorPoint(REGIONS_BY_ID.town, "square");
+    const position = npcSpawnPosition(new Vector2(square.x, square.y));
+    const person = new Npc(id, position.x, position.y, 16, 12, data);
+    mainScene.addChild(person);
+    npcs.set(id, person);
+    return;
+  }
+
   // Visitors arrive by boat, at the pier
   if (data.visitor && !isResumed) {
     const dock = PLACES_BY_ID.dock ?? NPC_SPAWN;
@@ -532,7 +544,9 @@ gameSocket.on("close", () => {
 gameSocket.on(protocol.AGENT_CREATED, ({ data }) => {
   addNpc(data.agent);
 
-  if (!data.visitor) {
+  if (data.townsfolk) {
+    notifications.push(`${data.agent.data.name} mora em Pedravento.`);
+  } else if (!data.visitor) {
     statusBanner.show(
       `${data.agent.data.name} chegou à vila (${data.created}/${data.total})`,
     );

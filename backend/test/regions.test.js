@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { CAMP_FIRST_ID, rollNode } from "../game/Regions.js";
+import {
+  CAMP_FIRST_ID,
+  TOWNSFOLK_FIRST_ID,
+  rollNode,
+} from "../game/Regions.js";
 import { fakeLlm, recordingSession, setTime } from "./helpers.js";
 
 test("the boat takes the player to the regions and back", async () => {
@@ -76,4 +80,39 @@ test("the town merchants buy and sell", async () => {
 test("NPCs know the places beyond the island", async () => {
   const { session } = await recordingSession(fakeLlm());
   assert.match(session.worldContext, /Floresta Sombria/);
+});
+
+test("the first trip to the town creates its people", async () => {
+  const llm = fakeLlm({
+    townsfolk: () => ({
+      people: ["Orla", "Brannoc", "Quilla", "Extra"].map((name) => ({
+        name,
+        occupation: "harbor master",
+        personality: ["calm"],
+        story: "Lives in the town.",
+        secret: "A small secret.",
+        likes: ["peixe"],
+        dislikes: ["lama"],
+      })),
+    }),
+  });
+  const { session, sent } = await recordingSession(llm);
+
+  await session.interact("travel:town");
+  await session.flush();
+
+  const created = sent.filter(
+    (m) => m.type === "agent_created" && m.data.townsfolk,
+  );
+  assert.equal(created.length, 3);
+  assert.equal(created[0].data.agent.data.region, "town");
+  assert.equal(session.getNpc(TOWNSFOLK_FIRST_ID).data.name, "Orla");
+  assert.equal(session.isVillager(TOWNSFOLK_FIRST_ID), false);
+
+  // Only once, and saved with the game
+  await session.interact("travel:village");
+  await session.interact("travel:town");
+  await session.flush();
+  assert.equal(llm.calls.filter((name) => name === "townsfolk").length, 1);
+  assert.deepEqual(session.toState().regions.townsfolk, [400, 401, 402]);
 });

@@ -53,7 +53,8 @@ export const NPC_CONVERSATION_END = "npc_conversation_end";
 // (what was built on the empty lots, how it looks and its furniture; sent
 // before the NPCs)
 export const VILLAGE_LAYOUT = "village_layout";
-// data: { agent, created, total } or { agent, visitor: true }
+// data: { agent, created, total } or { agent, visitor: true } or { agent,
+// townsfolk: true } (people of the town, data.region = "town")
 export const AGENT_CREATED = "agent_created";
 export const AGENT_LEFT = "agent_left"; // agentId (a visitor left)
 // agentId, data: { routine } (moved in with their partner) or { injured }

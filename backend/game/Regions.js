@@ -3,6 +3,8 @@
 // market town (tools, seeds and buyers). The maps are in the frontend
 // (tiled/regions/*.tmx); here are what the player gets from them.
 
+import { SPRITES, spriteGender } from "../prompts/npcGeneration.js";
+import { townsfolkPrompt, townsfolkSchema } from "../prompts/townsfolk.js";
 import * as protocol from "../protocol.js";
 import { COINS, itemKey } from "./PlayerState.js";
 
@@ -31,6 +33,10 @@ const DAY = 24 * 60;
 const RESPAWN = { tree: 2 * DAY, ore: DAY, crystal: 3 * DAY, forage: 90 };
 const TOOLS = { tree: "machado", ore: "picareta", crystal: "picareta" };
 const MAX_NODE = 20; // tree_0 .. tree_19, ore_0...
+
+// People of the town (created the first time the player goes there)
+export const TOWNSFOLK_FIRST_ID = 400;
+const TOWNSFOLK = 3;
 
 // Bandits guarding the camp (ids after the raids, see Bandits.js)
 export const CAMP_FIRST_ID = 300;
@@ -107,6 +113,9 @@ export class Regions {
     this.depleted = new Map();
     // Camp of the bandits in the forest
     this.camp = { clearedAt: null, defeated: [], chestLooted: false };
+    // People living in the town (NPC ids), created on the first visit
+    this.townsfolk = [];
+    this.isCreatingTownsfolk = false;
   }
 
   get now() {
@@ -144,6 +153,11 @@ export class Regions {
     session.clock.advance(TRAVEL_MINUTES);
     session.emit(protocol.CLOCK, { data: session.clock.toJSON() });
     session.emitWorldState();
+
+    // The people of the town are created while the player gets there
+    if (destination === "town" && this.townsfolk.length === 0) {
+      session.runInBackground(this.createTownsfolk());
+    }
 
     return {
       ok: true,
@@ -222,6 +236,66 @@ export class Regions {
         forage: `Você colheu ${got}.`,
       }[kind],
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // People of the town
+
+  async createTownsfolk(random = Math.random) {
+    const { session } = this;
+
+    if (this.isCreatingTownsfolk || this.townsfolk.length) return;
+    this.isCreatingTownsfolk = true;
+
+    try {
+      const sprites = Object.keys(SPRITES)
+        .sort(() => random() - 0.5)
+        .slice(0, TOWNSFOLK);
+      const { content } = await session.llm.complete({
+        cachePrefix: session.worldContext,
+        system: townsfolkPrompt({
+          context: session.worldContext,
+          people: sprites.map((sprite) => ({
+            gender: spriteGender(sprite),
+            look: SPRITES[sprite],
+          })),
+          usedNames: [...session.npcs.values()].map((npc) => npc.data.name),
+          language: session.language,
+        }),
+        messages: [{ role: "user", content: "Create the people of the town." }],
+        schema: townsfolkSchema,
+        temperature: 1,
+      });
+
+      const people = content.people.slice(0, TOWNSFOLK);
+      for (const [i, person] of people.entries()) {
+        const id = TOWNSFOLK_FIRST_ID + i;
+        const data = {
+          name: person.name.trim(),
+          occupation: person.occupation.trim(),
+          personality: person.personality,
+          story: person.story.trim(),
+          secret: person.secret.trim(),
+          likes: person.likes.slice(0, 3),
+          dislikes: person.dislikes.slice(0, 3),
+          routine: [],
+          wares: [],
+          work: "none",
+          goal: "",
+          region: "town",
+          gender: spriteGender(sprites[i]),
+          sprite: sprites[i],
+        };
+        await session.addNpc(id, data);
+        this.townsfolk.push(id);
+        session.emit(protocol.AGENT_CREATED, {
+          data: { agent: { id, data }, townsfolk: true },
+        });
+      }
+      session.save();
+    } finally {
+      this.isCreatingTownsfolk = false;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -368,6 +442,7 @@ export class Regions {
       location: this.location,
       depleted: [...this.depleted],
       camp: this.camp,
+      townsfolk: this.townsfolk,
     };
   }
 
@@ -375,5 +450,6 @@ export class Regions {
     this.location = state.location;
     this.depleted = new Map(state.depleted);
     this.camp = state.camp;
+    this.townsfolk = state.townsfolk ?? [];
   }
 }
