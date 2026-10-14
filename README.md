@@ -195,18 +195,19 @@ A frequência das conversas é configurada em `NPC_CHAT`, no arquivo `frontend/s
 
 Cada partida é independente: na primeira vez, o backend gera um novo mundo e novos NPCs. Ao recarregar a página, o jogo retoma a mesma partida, que fica salva no Redis por 7 dias sem ser jogada (ver `SESSION_TTL_DAYS`), mesmo que o backend seja reiniciado. Para começar uma vila nova, apague a chave `dinamic-rpg:session` do `localStorage` do navegador (ou abra o jogo numa janela anônima).
 
-## A ilha gerada e os mapas do Tiled
+## A ilha e as regiões geradas
 
 A vila é uma ilha gerada a partir de uma semente, guardada no navegador junto com a partida salva: continuar uma partida desenha a mesma ilha, e cada novo jogo cria outra. A geração (`frontend/src/world/island/`) decide o formato da ilha (com falésias e praias), a praça no meio, a taverna, o armazém, a casa e os terrenos vazios ao redor, o píer, as estradas ligando as portas, a plantação cercada com o moinho, hortas cercadas perto das casas, árvores, postes, placas, baús, o poço e os lugares usados nas rotinas e nos prompts. Todos os prédios e interiores são desenhados por código (`world/procedural/`). Os testes geram dezenas de ilhas e conferem que todos os lugares, portas e objetos podem ser alcançados.
 
-As regiões visitadas de barco continuam sendo mapas do [Tiled](https://www.mapeditor.org/) em `frontend/tiled/regions/*.tmx` (as imagens dos tilesets ficam em `frontend/public/tilesets/`). Depois de editar um mapa no Tiled, gere o arquivo usado pelo jogo:
+As regiões visitadas de barco são geradas da mesma forma, com a mesma semente (`world/island/regions.js`, desenhadas por `paintRegions.js`):
 
-```bash
-# Em frontend/
-npm run maps
-```
+- **Floresta:** praia com píer, uma trilha sinuosa até a clareira do acampamento dos bandidos (barracas, fogueira, caixotes e o baú), árvores para cortar ao longo da trilha, arbustos para colher, cogumelos e mata fechada ao redor.
+- **Mina:** uma caverna com formato próprio a cada partida, com o túnel de entrada, paredes de rocha, tochas, pedregulhos, pedras de minério e cristais junto às paredes.
+- **Pedravento:** porto, uma praça de pedra com chafariz, as barracas dos comerciantes, postes e três prédios (taverna, ferraria, loja ou casa) gerados como os da ilha.
 
-Convenções dos mapas do Tiled: a camada `Collisions` define onde não se anda, camadas que começam com `Foreground` são desenhadas por cima dos personagens e a camada de objetos `Points` tem a chegada do barco (`arrival`), as árvores (`tree`), as pedras (`ore`), os cristais (`crystal`), os arbustos (`forage`), os comerciantes (`merchant`) e o acampamento (`camp`, `camp_chest`).
+Os pontos de cada região (`tree_N`, `ore_N`, `crystal_N`, `forage_N`, `camp_chest`, `merchant_*`...) têm os nomes que o servidor já conhece. Árvores, pedras, cristais e arbustos são desenhados por cima do mapa e mudam quando são usados (toco, entulho, cristal arrancado, arbusto vazio) até voltarem a crescer. Os testes geram as regiões de várias sementes e conferem que tudo pode ser alcançado a partir do barco (`ISLAND_SEEDS=N npm test` testa mais sementes).
+
+Os mapas antigos do [Tiled](https://www.mapeditor.org/) (`frontend/tiled/`, exportados com `npm run maps` para `levels/maps.js`) ficam só como referência na prévia (`preview.html`), que mostra lado a lado as ilhas, as regiões, as casas e os interiores gerados.
 
 ## Testes e lint
 
@@ -283,13 +284,14 @@ frontend/src/
   utils/overlay.js         Balões e ícones desenhados por cima das árvores
   levels/places.js         Lugares do mapa usados nas rotinas, encontros e prompts
   levels/maps.js           Mapas exportados do Tiled (gerado por scripts/export-maps.mjs)
-  levels/world.js          Vila + interiores numa só grade de colisão
+  levels/world.js          Vila, interiores e regiões numa só grade de colisão
   world/TileMap.js         Desenha um mapa do Tiled tile a tile (e permite trocar tiles)
   world/Interiors.js       Entrar e sair dos prédios, moradores lá dentro, balcões, cama e luz interna
   world/Regions.js         Viagens de barco, floresta, mina e vila vizinha (comércio e acampamento)
   world/VillageLayout.js   Coloca nos terrenos os prédios da vila planejada pelo modelo
   world/island/            Ilha gerada: formato, prédios, estradas, cercas, hortas, árvores e
-                           objetos (layout.js, puro e testado) e o desenho (paint.js)
+                           objetos (layout.js, puro e testado) e o desenho (paint.js); regiões
+                           por barco (regions.js) e o desenho delas (paintRegions.js)
   world/procedural/        Pixel art gerada por código: casas (houses.js), móveis
                            (furniture.js), interiores e
                            posicionamento dos móveis (rooms.js)

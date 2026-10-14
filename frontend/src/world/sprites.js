@@ -556,3 +556,76 @@ export function tent(ctx, x, y) {
   rect(ctx, WOOD_DARK, x - 1, y - 20, 2, 4);
   rect(ctx, "#8a2b2b", x + 1, y - 20, 4, 2);
 }
+
+/** What is left of a felled tree. */
+export function stump(ctx, x, y) {
+  rect(ctx, "rgba(20,50,20,0.25)", x - 8, y - 2, 16, 3);
+  rect(ctx, "#2b1d1a", x - 6, y - 9, 12, 8);
+  rect(ctx, "#7a4a2c", x - 5, y - 8, 10, 7);
+  rect(ctx, "#9a6240", x - 5, y - 8, 3, 7);
+  rect(ctx, "#d9b07a", x - 5, y - 9, 10, 2);
+  rect(ctx, "#b98a5a", x - 2, y - 9, 4, 1);
+  rect(ctx, WOOD_DARK, x - 8, y - 3, 3, 2);
+  rect(ctx, WOOD_DARK, x + 5, y - 3, 3, 2);
+  // Chips of wood around it
+  rect(ctx, "#d9b07a", x - 10, y - 1, 2, 1);
+  rect(ctx, "#d9b07a", x + 8, y, 2, 1);
+}
+
+/** A rock with veins of ore, to mine. */
+export function oreRock(ctx, x, y) {
+  rect(ctx, "rgba(0,0,0,0.3)", x - 8, y - 2, 16, 3);
+  rect(ctx, "#2b1d1a", x - 7, y - 13, 14, 12);
+  rect(ctx, "#2b1d1a", x - 5, y - 15, 10, 2);
+  rect(ctx, STONE_DARK, x - 6, y - 12, 12, 10);
+  rect(ctx, "#7d8188", x - 4, y - 14, 8, 6);
+  rect(ctx, STONE, x - 4, y - 14, 5, 2);
+  rect(ctx, "#c3c7cc", x - 3, y - 14, 2, 1);
+  // Veins of iron and coal
+  for (const [dx, dy, color] of [
+    [-4, -9, "#c96f3a"],
+    [2, -11, "#e08a4a"],
+    [0, -6, "#c96f3a"],
+    [-2, -12, "#1f1c22"],
+    [3, -5, "#1f1c22"],
+  ]) {
+    rect(ctx, color, x + dx, y + dy, 2, 1);
+  }
+}
+
+/** Broken stones where a rock was mined. */
+export function rubble(ctx, x, y) {
+  rect(ctx, "rgba(0,0,0,0.2)", x - 7, y - 2, 14, 2);
+  for (const [dx, dy, w, h] of [
+    [-6, -4, 4, 3],
+    [-1, -5, 5, 4],
+    [4, -3, 3, 2],
+  ]) {
+    rect(ctx, "#2b1d1a", x + dx - 1, y + dy - 1, w + 2, h + 2);
+    rect(ctx, STONE_DARK, x + dx, y + dy, w, h);
+    rect(ctx, STONE, x + dx, y + dy, w - 1, 1);
+  }
+}
+
+/** A cluster of glowing crystals growing from the rock. */
+export function crystal(ctx, x, y, t, taken) {
+  rect(ctx, "rgba(0,0,0,0.3)", x - 7, y - 2, 14, 3);
+  rect(ctx, "#2b1d1a", x - 6, y - 5, 12, 4);
+  rect(ctx, STONE_DARK, x - 5, y - 4, 10, 3);
+  if (taken) {
+    rect(ctx, "#6c5a8a", x - 2, y - 6, 2, 2);
+    rect(ctx, "#6c5a8a", x + 2, y - 5, 1, 1);
+    return;
+  }
+  const glow = Math.sin(t / 400) > 0.5;
+  for (const [dx, height, width] of [
+    [-4, 8, 3],
+    [-1, 13, 4],
+    [3, 9, 3],
+  ]) {
+    rect(ctx, "#2b1d1a", x + dx - 1, y - 4 - height, width + 2, height + 1);
+    rect(ctx, "#8a5ab8", x + dx, y - 4 - height + 1, width, height);
+    rect(ctx, "#c9a6ff", x + dx, y - 4 - height + 1, 1, height - 1);
+    rect(ctx, glow ? "#ffffff" : "#e6d6ff", x + dx, y - 4 - height + 1, 1, 1);
+  }
+}

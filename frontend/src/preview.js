@@ -11,6 +11,10 @@ import {
   houseSize,
 } from "./world/procedural/houses";
 import { createIsland, paintIsland } from "./world/island";
+import { paintTree } from "./world/island/paint";
+import { generateRegions } from "./world/island/regions";
+import { paintRegion } from "./world/island/paintRegions";
+import * as sprites from "./world/sprites";
 import { drawRoom, roomFor } from "./world/procedural/rooms";
 import { TileMap } from "./world/TileMap";
 
@@ -74,6 +78,8 @@ async function render() {
   const houses = document.getElementById("houses");
   const villageRow = document.getElementById("village");
   const rooms = document.getElementById("rooms");
+  const regions = document.getElementById("regions");
+  regions.replaceChildren();
   houses.replaceChildren();
   villageRow.replaceChildren();
   rooms.replaceChildren();
@@ -118,6 +124,41 @@ async function render() {
         ground: (lot.row + 7) * 12 + 2,
       }).paint(ctx, ctx);
     });
+  }
+
+  // The regions reached by boat, generated like the island (the things that
+  // change in the game are drawn over them here)
+  const names = { forest: "Floresta", mine: "Mina", town: "Pedravento" };
+  for (const layout of Object.values(generateRegions(round * 7919))) {
+    const { background, foreground } = paintRegion(layout);
+    const ctx = figure(
+      regions,
+      background.width,
+      background.height,
+      names[layout.id],
+    );
+    ctx.drawImage(background, 0, 0);
+    for (const point of Object.values(layout.points)) {
+      const draw = {
+        tree: () =>
+          paintTree(
+            ctx,
+            ctx,
+            { column: point.x / 12 - 1, row: (point.y - 10) / 12 - 2 },
+            seeded(point.x),
+          ),
+        ore: () => sprites.oreRock(ctx, point.x, point.y - 8),
+        crystal: () => sprites.crystal(ctx, point.x, point.y - 8, 0),
+        forage: () => sprites.bush(ctx, point.x, point.y + 4, "summer"),
+        lamp: () => sprites.lamp(ctx, point.x, point.y, false),
+        tent: () => sprites.tent(ctx, point.x, point.y),
+        campfire: () => sprites.campfire(ctx, point.x, point.y, 0, true),
+        stall: () => sprites.stall(ctx, point.x, point.y, point.x),
+        boat: () => sprites.boat(ctx, point.x, point.y, 0),
+      }[point.kind];
+      draw?.();
+    }
+    ctx.drawImage(foreground, 0, 0);
   }
 
   // Interiors of the tilesets, then generated ones

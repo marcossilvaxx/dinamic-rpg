@@ -25,8 +25,10 @@ import { preRenderText } from "../utils/text";
 import { Vector2 } from "../utils/Vector2";
 import { Lighting } from "./Lighting";
 import { lampsLit } from "./rules";
+import { paintTree } from "./island/paint";
+import { paintRegion } from "./island/paintRegions";
+import { seeded } from "./procedural/pixel";
 import * as sprites from "./sprites";
-import { TileMap } from "./TileMap";
 
 const INTERACT_DISTANCE = 18;
 
@@ -76,6 +78,19 @@ const NODE_LABELS = {
   crystal: "Tirar o cristal",
   forage: "Colher",
 };
+
+// A tree that can be cut is drawn like the trees of the map (crown and
+// trunk on one image, sorted by depth with the characters)
+const TREE_ANCHOR = { x: 24, y: 46 };
+function treeImage(seed) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 48;
+  canvas.height = 52;
+  const ctx = canvas.getContext("2d");
+  const random = seeded(seed);
+  paintTree(ctx, ctx, { column: 1, row: 1, variant: random.int(0, 2) }, random);
+  return canvas;
+}
 
 /** Something drawn in a region, sorted by depth with the characters. */
 class RegionProp extends GameObject {
@@ -132,20 +147,21 @@ export class Regions {
     this.menu = menu;
     this.current = null;
     this.lighting = new Lighting(screen);
-    this.applied = new Set(); // Depleted nodes drawn as such
     this.time = 0;
+    this.outsideAlpha = 0;
 
+    // The maps are generated with the island (see world/island/regions.js)
     this.rooms = REGIONS.map((region) => {
-      const tileMap = new TileMap(region.map);
+      const { background, foreground } = paintRegion(region.layout);
       const map = new MapObject({
-        resource: tileMap.background,
-        foregroundResource: tileMap.foreground,
+        resource: { image: background, isLoaded: true },
+        foregroundResource: { image: foreground, isLoaded: true },
         width: region.width,
         height: region.height,
         position: new Vector2(region.origin.x, region.origin.y),
       });
       scene.addChild(map);
-      return { region, tileMap, map };
+      return { region, map };
     });
 
     this.addProps();
@@ -169,10 +185,60 @@ export class Regions {
       .map(([name]) => ({ name, ...interiorPoint(region, name) }));
   }
 
+  /** Whether a tree, rock or bush of the region was used up. */
+  isDepleted(region, name) {
+    return (this.state.depleted ?? []).includes(`${region.id}:${name}`);
+  }
+
   addProps() {
     const add = (x, y, draw) => this.scene.addChild(new RegionProp(x, y, draw));
 
     for (const region of REGIONS) {
+      // Trees to cut, rocks to mine, crystals and bushes: they change when
+      // used up (and come back when they grow again)
+      for (const tree of this.points(region, "tree")) {
+        const image = treeImage(region.layout.seed + tree.x * 7 + tree.y);
+        add(tree.x, tree.y, (ctx, x, y) =>
+          this.isDepleted(region, tree.name)
+            ? sprites.stump(ctx, x, y)
+            : ctx.drawImage(image, x - TREE_ANCHOR.x, y - TREE_ANCHOR.y),
+        );
+      }
+      for (const ore of this.points(region, "ore")) {
+        add(ore.x, ore.y - 8, (ctx, x, y) =>
+          this.isDepleted(region, ore.name)
+            ? sprites.rubble(ctx, x, y)
+            : sprites.oreRock(ctx, x, y),
+        );
+      }
+      for (const gem of this.points(region, "crystal")) {
+        add(gem.x, gem.y - 8, (ctx, x, y) =>
+          sprites.crystal(
+            ctx,
+            x,
+            y,
+            this.time,
+            this.isDepleted(region, gem.name),
+          ),
+        );
+      }
+      for (const bush of this.points(region, "forage")) {
+        add(bush.x, bush.y + 4, (ctx, x, y) =>
+          sprites.bush(
+            ctx,
+            x,
+            y,
+            worldState.state.season ?? "spring",
+            this.isDepleted(region, bush.name),
+          ),
+        );
+      }
+      for (const lamp of this.points(region, "lamp")) {
+        add(lamp.x, lamp.y, (ctx, x, y) =>
+          sprites.lamp(ctx, x, y, lampsLit(this.outsideAlpha)),
+        );
+      }
+
       for (const boat of this.points(region, "boat")) {
         add(boat.x, boat.y, (ctx, x, y) => sprites.boat(ctx, x, y, this.time));
       }
@@ -306,93 +372,7 @@ export class Regions {
 
   step(delta) {
     this.time += delta;
-    this.applyDepleted();
     if (this.current?.id === "forest") this.syncCampBandits();
-  }
-
-  /** Felled trees become stumps, mined rocks become rubble (and back). */
-  applyDepleted() {
-    const depleted = new Set(this.state.depleted);
-
-    for (const { region, tileMap } of this.rooms) {
-      for (const [name, point] of Object.entries(region.map.points)) {
-        if (!["tree", "ore", "crystal"].includes(point.kind)) continue;
-        const key = `${region.id}:${name}`;
-        const isDepleted = depleted.has(key);
-        if (isDepleted === this.applied.has(key)) continue;
-
-        if (isDepleted) this.applied.add(key);
-        else this.applied.delete(key);
-        this.setNodeTiles(region, tileMap, point, isDepleted);
-      }
-    }
-  }
-
-  setNodeTiles(region, tileMap, point, depleted) {
-    const tileset = (name) =>
-      region.map.tilesets.find((t) => t.name === name)?.firstgid ?? 0;
-    const nature = tileset("nature");
-    const column = Math.floor(point.x / 16);
-
-    if (point.kind === "tree") {
-      // Tall tree (2x4) with its trunk on the row of the point
-      const row = Math.floor(point.y / 16);
-      const original = (layer, c, r) =>
-        region.map.layers.find((l) => l.name === layer).data[
-          r * region.map.width + c
-        ];
-      for (let dx = 0; dx < 2; dx++) {
-        const c = column + dx;
-        tileMap.setTile(
-          "Foreground",
-          c,
-          row - 3,
-          depleted ? 0 : original("Foreground", c, row - 3),
-        );
-        tileMap.setTile(
-          "Foreground",
-          c,
-          row - 2,
-          depleted ? 0 : original("Foreground", c, row - 2),
-        );
-        tileMap.setTile(
-          "Foreground",
-          c,
-          row - 1,
-          depleted ? nature + 76 + dx : original("Foreground", c, row - 1),
-        );
-        tileMap.setTile(
-          "Trees",
-          c,
-          row,
-          depleted ? nature + 106 + dx : original("Trees", c, row),
-        );
-      }
-      return;
-    }
-
-    // Rocks and crystals (2x2) end above the point
-    const row = Math.floor((point.y - 4) / 16) - 2;
-    const left = column - 1;
-    const original = (c, r) =>
-      region.map.layers.find((l) => l.name === "Objects").data[
-        r * region.map.width + c
-      ];
-    const rubble = [188, 189, 218, 219];
-    for (let i = 0; i < 4; i++) {
-      const c = left + (i % 2);
-      const r = row + Math.floor(i / 2);
-      tileMap.setTile(
-        "Objects",
-        c,
-        r,
-        depleted
-          ? point.kind === "ore"
-            ? nature + rubble[i]
-            : 0
-          : original(c, r),
-      );
-    }
   }
 
   /** The bandits guarding their camp, while the player is in the forest. */
@@ -446,8 +426,6 @@ export class Regions {
       Math.hypot(feet.x - x, feet.y - y) <= distance;
     const server = (objectId) => () =>
       gameSocket.send(protocol.INTERACT, { data: { objectId } });
-    const depleted = new Set(this.state.depleted);
-
     const arrival = interiorPoint(region, "arrival");
     if (near({ x: arrival.x + 8, y: arrival.y + 10 }, 22)) {
       return {
@@ -457,20 +435,17 @@ export class Regions {
     }
 
     for (const point of this.points(region)) {
-      // Trees: by the trunk; merchants: where they stand
+      // Merchants: where they stand; the rest: at the point (under the
+      // trunk of a tree, in front of a rock)
       const center =
-        point.kind === "tree"
-          ? { x: point.x + 16, y: point.y + 14 }
-          : point.kind === "merchant"
-            ? { x: point.x + 8, y: point.y + 10 }
-            : point;
+        point.kind === "merchant" ? { x: point.x + 8, y: point.y + 10 } : point;
 
       if (!near(center, point.kind === "merchant" ? 24 : INTERACT_DISTANCE)) {
         continue;
       }
 
       if (NODE_LABELS[point.kind]) {
-        return depleted.has(`${region.id}:${point.name}`)
+        return this.isDepleted(region, point.name)
           ? {
               label: point.kind === "tree" ? "Toco de árvore" : "Esgotado",
               run: server(point.name),
@@ -530,6 +505,7 @@ export class Regions {
     const region = this.current;
     const hero = { x: this.hero.position.x + 8, y: this.hero.position.y + 4 };
     const lights = [];
+    this.outsideAlpha = outside.alpha;
 
     if (region.dark || outside.alpha > 0.3) {
       lights.push({
@@ -541,7 +517,15 @@ export class Regions {
     }
 
     for (const point of this.points(region)) {
-      if (point.kind === "light") {
+      if (point.kind === "lamp" && lampsLit(outside.alpha)) {
+        lights.push({
+          x: point.x,
+          y: point.y - 24,
+          radius: 40,
+          strength: 0.8,
+          color: [255, 210, 120],
+        });
+      } else if (point.kind === "light") {
         lights.push({
           x: point.x,
           y: point.y,

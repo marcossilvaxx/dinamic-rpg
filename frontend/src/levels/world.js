@@ -34,25 +34,68 @@ export const BUILDING_INTERIOR_ORIGINS = {
   east_house: { x: 1440, y: 0 },
 };
 
-// Places beyond the island, reached by boat (see backend game/Regions.js)
+// Places beyond the island, reached by boat (see backend game/Regions.js).
+// Their maps are generated with the island (world/island/regions.js) and
+// filled by applyRegions; the size (12 px tiles) is fixed, so they fit
+// between the interiors.
+const blankMap = (columns, rows) => ({
+  width: columns,
+  height: rows,
+  tileWidth: TILE,
+  tileHeight: TILE,
+  collisions: Array(columns * rows).fill(1),
+  points: {},
+});
+
 export const REGIONS = [
-  { id: "forest", name: "Floresta Sombria", origin: { x: 1704, y: 0 } },
+  {
+    id: "forest",
+    name: "Floresta Sombria",
+    origin: { x: 1704, y: 0 },
+    columns: 42,
+    rows: 26,
+  },
   {
     id: "mine",
     name: "Mina do Penhasco",
     origin: { x: 2232, y: 0 },
+    columns: 32,
+    rows: 21,
     dark: true,
   },
-  { id: "town", name: "Vila de Pedravento", origin: { x: 2640, y: 0 } },
-].map((region) => {
-  const map = MAPS[region.id];
-  return {
-    ...region,
-    map,
-    width: map.width * map.tileWidth,
-    height: map.height * map.tileHeight,
-  };
-});
+  {
+    id: "town",
+    name: "Vila de Pedravento",
+    origin: { x: 2640, y: 0 },
+    columns: 37,
+    rows: 24,
+  },
+].map((region) => ({
+  ...region,
+  map: blankMap(region.columns, region.rows),
+  layout: null,
+  width: region.columns * TILE,
+  height: region.rows * TILE,
+}));
+
+/** Puts the generated regions ({ forest, mine, town }) in the world. */
+export function applyRegions(layouts) {
+  for (const region of REGIONS) {
+    const layout = layouts[region.id];
+    if (layout.columns !== region.columns || layout.rows !== region.rows) {
+      throw new Error(`The ${region.id} has the wrong size`);
+    }
+    region.layout = layout;
+    region.map = {
+      width: layout.columns,
+      height: layout.rows,
+      tileWidth: layout.tileWidth,
+      tileHeight: layout.tileHeight,
+      collisions: layout.collisions,
+      points: layout.points,
+    };
+  }
+}
 
 export const REGIONS_BY_ID = Object.fromEntries(
   REGIONS.map((region) => [region.id, region]),
@@ -115,7 +158,8 @@ export const interiorPoint = (interior, name) => {
 };
 
 /**
- * Rows of the world collision grid (1 = blocked). Interiors use 16 px tiles:
+ * Rows of the world collision grid (1 = blocked). Interiors use 16 px tiles,
+ * regions 12 px:
  * a 12 px cell is blocked when its center is on a blocked tile. Everything
  * out of the village and of the interiors is blocked.
  */
@@ -134,7 +178,7 @@ export function worldCollisionRows() {
 }
 
 /**
- * Writes the collisions of an interior or region (16 px tiles) on the rows
+ * Writes the collisions of an interior (16 px tiles) or region (12 px) on the rows
  * of the world grid (12 px): a cell is blocked when its center is.
  */
 export function rasterizeArea(rows, { origin, width, height, map }) {
