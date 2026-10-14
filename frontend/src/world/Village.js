@@ -8,6 +8,7 @@ import {
   FARM_PLOTS,
   LAMPS,
   SIGNS,
+  VILLAGE_BOAT,
   WELL,
   WOODPILE,
 } from "../levels/decor";
@@ -24,7 +25,6 @@ import { Ambient } from "./Ambient";
 import { GroundLayer } from "./GroundLayer";
 import { Lighting } from "./Lighting";
 import { Props } from "./Props";
-import { VILLAGE_BOAT } from "./Regions";
 import {
   campfireLit,
   isDaytime,
@@ -473,10 +473,10 @@ export class Village {
       Math.hypot(feet.x - x, feet.y - y) <= distance;
     const server = (objectId) => () => this.interact(objectId);
 
-    if (near(WELL.x + 12, WELL.y + 26, 20)) {
+    if (WELL.tiles.length && near(WELL.x + 12, WELL.y + 26, 20)) {
       return { label: "Encher o cantil", run: server("well") };
     }
-    if (near(WOODPILE.x + 12, WOODPILE.y + 14)) {
+    if (WOODPILE.tiles.length && near(WOODPILE.x + 12, WOODPILE.y + 14)) {
       return { label: "Cortar lenha", run: server("woodpile") };
     }
     for (const chest of CHESTS) {

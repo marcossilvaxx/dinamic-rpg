@@ -1,237 +1,49 @@
-// Things added over the village map (tiled/game-test-map.tmx): lamps, the windmill, the farm
-// field, the well, chests... and where the buildings of the map have their
-// windows, doors and chimneys. Positions are in map pixels (tile = 12 px).
-// Blocking props occupy whole tiles (`tiles`), checked by
-// test/decor.test.js. No imports on purpose: shared with the node tests.
+// Things on the village map: buildings (doors, windows, chimneys), lamps,
+// the windmill, the farm field, the well, chests, signs, bushes... The island
+// is generated from a seed (world/island): these containers are filled by
+// `applyIsland` before the game starts, so the rest of the game reads them
+// as before. Positions are in map pixels (tile = 12 px); blocking props have
+// the tiles they occupy (`tiles`). No imports on purpose: shared with the
+// node tests.
 
 export const TILE = 12;
 
-const tileRect = (column, row, columns = 1, rows = 1) => ({
-  x: column * TILE,
-  y: row * TILE,
-  tiles: Array.from({ length: columns * rows }, (_, i) => [
-    column + (i % columns),
-    row + Math.floor(i / columns),
-  ]),
-});
+/** Buildings of the map: { placeId, area, door, windows, chimney }. */
+export const BUILDINGS = [];
+/** Empty lots where the village plan (language model) may build. */
+export const LOTS = [];
 
-// The three houses of the map are the same drawing, moved
-// The house of the map as a stamp (prefab): tiles of the village map from
-// column 10, row 4 (6 x 8 tiles, with its shadow and doorstep). Empty lots
-// get a copy of it when the village plan builds there (see world/VillageLayout.js).
-export const HOUSE_PREFAB = {
-  column: 10,
-  row: 4,
-  columns: 6,
-  rows: 8,
-  layers: ["House", "Foreground Objects", "Paths"],
-};
-
-const house = (placeId, dx, dy) => ({
-  placeId,
-  // The whole drawing (roof and walls)
-  area: { x: 132 + dx, y: 55 + dy, width: 48, height: 76 },
-  door: { x: 156 + dx, y: 132 + dy },
-  windows: [
-    { x: 156 + dx, y: 104 + dy, round: true },
-    { x: 142 + dx, y: 117 + dy },
-    { x: 169 + dx, y: 117 + dy },
-  ],
-  chimney: { x: 166 + dx, y: 64 + dy },
-});
-
-export const BUILDINGS = [
-  house("west_house", 0, 0),
-  house("tavern", 360, 25),
-  house("east_house", 540, 133),
-];
-
-// Empty lots where the village plan (made by the language model) may build
-// a house: top left tile of the prefab, and how it is described to the model
-export const LOTS = [
-  {
-    id: "lot_north",
-    column: 18,
-    row: 3,
-    description:
-      "a lot in the north-west meadow, between the west house and the north field",
-  },
-  {
-    id: "lot_meadow",
-    column: 31,
-    row: 3,
-    description: "a lot in the north meadow, north of the village garden",
-  },
-  {
-    id: "lot_garden",
-    column: 20,
-    row: 17,
-    description: "a lot west of the village garden, by the west road",
-  },
-  {
-    id: "lot_east",
-    column: 61,
-    row: 15,
-    description: "a lot in the east, near the coast and the east field",
-  },
-];
-
-/** Offset (pixels) of a lot from the west house, the model of the prefab. */
-const lotOffset = (lot) => ({
-  dx: (lot.column - HOUSE_PREFAB.column) * TILE,
-  dy: (lot.row - HOUSE_PREFAB.row) * TILE,
-});
-
-/** The house built on a lot (door, windows, chimney, like BUILDINGS). */
-export const lotBuilding = (lot) => {
-  const { dx, dy } = lotOffset(lot);
-  return house(lot.id, dx, dy);
-};
-
-/** The place in front of the door of a lot (like the west house's). */
-export const lotPlace = (lot) => {
-  const { dx, dy } = lotOffset(lot);
-  return { x: 148 + dx, y: 140 + dy };
-};
-
-// Street lamps (lit at night)
-export const LAMPS = [
-  [20, 13],
-  [30, 13],
-  [47, 13],
-  [46, 25],
-  [25, 27],
-  [40, 31],
-  [60, 27],
-  [15, 32],
-].map(([column, row]) => ({ ...tileRect(column, row), kind: "lamp" }));
-
-export const WINDMILL = { ...tileRect(58, 9, 2, 2), kind: "windmill" };
-export const WELL = { ...tileRect(36, 11, 2, 2), kind: "well", id: "well" };
+export const LAMPS = [];
+export const WINDMILL = { x: 0, y: 0, tiles: [], kind: "windmill" };
+export const WELL = { x: 0, y: 0, tiles: [], kind: "well", id: "well" };
 export const WOODPILE = {
-  ...tileRect(16, 10, 2, 1),
+  x: 0,
+  y: 0,
+  tiles: [],
   kind: "woodpile",
   id: "woodpile",
 };
-export const SCARECROW = { ...tileRect(56, 6), kind: "scarecrow" };
+export const SCARECROW = { x: 0, y: 0, tiles: [], kind: "scarecrow" };
+export const CHESTS = [];
+export const SIGNS = [];
+/** Plots of the farm field (2x1 tiles, walkable), index = plot of the server. */
+export const FARM_PLOTS = [];
+/** Props the characters can't walk through. */
+export const BLOCKING_PROPS = [];
 
-export const CHESTS = [
-  { ...tileRect(27, 3), kind: "chest", id: "chest_north" },
-  { ...tileRect(30, 32), kind: "chest", id: "chest_south" },
-  { ...tileRect(64, 25), kind: "chest", id: "chest_east" },
-];
+export const CAMPFIRE = { x: 0, y: 0 };
+export const BUSHES = [];
+export const FISH_SPOTS = [];
+export const CHICKEN_YARDS = [];
+/** Where the boat leaves from in the village (end of the pier). */
+export const VILLAGE_BOAT = { x: 0, y: 0 };
+/** Where the cat lives, the crowns of the garden trees, fireflies. */
+export const CAT_HOME = { x: 0, y: 0 };
+export const TREE_CROWNS = [];
+export const FIREFLY_AREAS = [];
 
-// Signposts with the name of the place
-export const SIGNS = [
-  { ...tileRect(45, 13), placeId: "tavern" },
-  { ...tileRect(14, 13), placeId: "west_house" },
-  { ...tileRect(60, 23), placeId: "east_house" },
-  { ...tileRect(37, 25), placeId: "garden" },
-  { ...tileRect(14, 31), placeId: "dock" },
-].map((sign) => ({ ...sign, kind: "sign" }));
-
-// Farm field: plots of 2x1 tiles (walkable), index = plot id of the server.
-// The first 6 are there from the start; good harvests open the others.
-export const FARM_PLOTS = [
-  [47, 5],
-  [50, 5],
-  [53, 5],
-  [47, 7],
-  [50, 7],
-  [53, 7],
-  [47, 9],
-  [50, 9],
-  [53, 9],
-].map(([column, row], index) => ({
-  index,
-  x: column * TILE,
-  y: row * TILE,
-  width: 2 * TILE,
-  height: TILE,
-}));
-
-// Props the characters can't walk through
-export const BLOCKING_PROPS = [
-  ...LAMPS,
-  WINDMILL,
-  WELL,
-  WOODPILE,
-  SCARECROW,
-  ...CHESTS,
-  ...SIGNS,
-];
-
-// Campfire on the old stone circle of the garden (lit in the evening)
-export const CAMPFIRE = { x: 432, y: 231 };
-
-// Bushes where the player gathers (fruits, flowers, mushrooms by season)
-export const BUSHES = [
-  { x: 310, y: 76 },
-  { x: 352, y: 104 },
-  { x: 300, y: 112 },
-  { x: 722, y: 146 },
-  { x: 764, y: 164 },
-  { x: 384, y: 262 },
-  { x: 466, y: 240 },
-];
-
-// Where fish jump and the water ripples, around the pier
-export const FISH_SPOTS = [
-  { x: 60, y: 344 },
-  { x: 132, y: 410 },
-  { x: 40, y: 392 },
-];
-
-// Where chickens live (they wander around)
-export const CHICKEN_YARDS = [
-  { x: 196, y: 148, count: 3 },
-  { x: 650, y: 300, count: 2 },
-];
-
-// Spots near each place for things that appear with the story (stalls,
-// wrecks, festival decoration...): walkable and away from the paths.
-export const STRUCTURE_SPOTS = {
-  tavern: [
-    { x: 470, y: 150 },
-    { x: 566, y: 150 },
-    { x: 560, y: 116 },
-  ],
-  west_house: [
-    { x: 112, y: 150 },
-    { x: 212, y: 150 },
-    { x: 200, y: 176 },
-  ],
-  east_house: [
-    { x: 646, y: 250 },
-    { x: 604, y: 296 },
-    { x: 740, y: 286 },
-  ],
-  garden: [
-    { x: 396, y: 240 },
-    { x: 452, y: 262 },
-    { x: 420, y: 256 },
-  ],
-  dock: [
-    { x: 162, y: 330 },
-    { x: 190, y: 380 },
-    { x: 180, y: 320 },
-  ],
-  south_road: [
-    { x: 380, y: 384 },
-    { x: 470, y: 384 },
-    { x: 520, y: 316 },
-  ],
-  north_meadow: [
-    { x: 360, y: 40 },
-    { x: 300, y: 40 },
-    { x: 300, y: 130 },
-  ],
-  east_meadow: [
-    { x: 716, y: 184 },
-    { x: 776, y: 140 },
-    { x: 700, y: 160 },
-  ],
-};
+/** Spots near each place for things that come with the story. */
+export const STRUCTURE_SPOTS = {};
 
 /** Spot `index` (wraps around) near the place, or null. */
 export const spotFor = (placeId, index = 0) => {
@@ -240,3 +52,52 @@ export const spotFor = (placeId, index = 0) => {
     ? spots[((index % spots.length) + spots.length) % spots.length]
     : null;
 };
+
+const replace = (array, items) => array.splice(0, array.length, ...items);
+
+/**
+ * Fills the containers above from a generated island (world/island/layout).
+ * Windows and chimneys of the buildings come when they are drawn.
+ */
+export function applyDecor(layout) {
+  const { props } = layout;
+
+  replace(
+    BUILDINGS,
+    layout.buildings
+      .filter((building) => !building.lot)
+      .map(({ id, area, door }) => ({
+        placeId: id,
+        area,
+        door,
+        windows: [],
+        chimney: null,
+        drawnChimney: true,
+      })),
+  );
+  replace(LOTS, layout.lots);
+  replace(LAMPS, props.lamps);
+  Object.assign(WINDMILL, props.windmill);
+  Object.assign(WELL, props.well ?? { tiles: [] });
+  Object.assign(WOODPILE, props.woodpile ?? { tiles: [] });
+  Object.assign(SCARECROW, props.scarecrow);
+  replace(CHESTS, props.chests);
+  replace(SIGNS, props.signs);
+  replace(FARM_PLOTS, props.farmPlots);
+  replace(
+    BLOCKING_PROPS,
+    [...LAMPS, WINDMILL, WELL, WOODPILE, SCARECROW, ...CHESTS, ...SIGNS].filter(
+      (prop) => prop.tiles.length,
+    ),
+  );
+  Object.assign(CAMPFIRE, props.campfire);
+  replace(BUSHES, props.bushes);
+  replace(FISH_SPOTS, props.fishSpots);
+  replace(CHICKEN_YARDS, props.chickenYards);
+  Object.assign(VILLAGE_BOAT, props.boat);
+  Object.assign(CAT_HOME, props.catHome);
+  replace(TREE_CROWNS, props.treeCrowns);
+  replace(FIREFLY_AREAS, props.fireflyAreas);
+  for (const key of Object.keys(STRUCTURE_SPOTS)) delete STRUCTURE_SPOTS[key];
+  Object.assign(STRUCTURE_SPOTS, props.structureSpots);
+}

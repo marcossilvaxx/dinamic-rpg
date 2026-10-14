@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { PLACES_BY_ID } from "../src/levels/places.js";
+import { createIsland } from "../src/world/island/index.js";
 import {
   ZONE_WIDTH,
   activityAt,
@@ -16,6 +17,7 @@ test("stopping the needle in the zone catches something", () => {
 });
 
 test("fishing at the pier and gathering in the fields", () => {
+  createIsland(7);
   assert.equal(activityAt(PLACES_BY_ID.dock), "fishing");
   assert.equal(activityAt(PLACES_BY_ID.north_meadow), "gathering");
   assert.equal(activityAt(PLACES_BY_ID.tavern), null);

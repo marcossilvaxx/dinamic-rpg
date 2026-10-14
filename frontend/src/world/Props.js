@@ -87,12 +87,16 @@ export class Props {
     this.add(windmill.x, windmill.y, (ctx, x, y) =>
       sprites.windmill(ctx, x, y, v.windmillAngle),
     );
-    const well = bottom(WELL, 23);
-    this.add(well.x, well.y, (ctx, x, y) => sprites.well(ctx, x, y));
-    const woodpile = bottom(WOODPILE, 11);
-    this.add(woodpile.x, woodpile.y, (ctx, x, y) =>
-      sprites.woodpile(ctx, x, y),
-    );
+    if (WELL.tiles.length) {
+      const well = bottom(WELL, 23);
+      this.add(well.x, well.y, (ctx, x, y) => sprites.well(ctx, x, y));
+    }
+    if (WOODPILE.tiles.length) {
+      const woodpile = bottom(WOODPILE, 11);
+      this.add(woodpile.x, woodpile.y, (ctx, x, y) =>
+        sprites.woodpile(ctx, x, y),
+      );
+    }
     const scarecrow = bottom(SCARECROW, 11);
     this.add(scarecrow.x, scarecrow.y, (ctx, x, y) =>
       sprites.scarecrow(ctx, x, y, v.time),

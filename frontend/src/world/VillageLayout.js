@@ -6,7 +6,7 @@
 
 import { BUILDINGS, LOTS, STRUCTURE_SPOTS } from "../levels/decor";
 import { PLACES, PLACES_BY_ID } from "../levels/places";
-import { addLotInterior, rasterizeArea } from "../levels/world";
+import { addInterior, rasterizeArea } from "../levels/world";
 import { pathfinder } from "../utils/pathfinding";
 import { seedOf } from "./procedural/pixel";
 import { buildHouse, houseFromLook } from "./procedural/houses";
@@ -37,14 +37,15 @@ function blockRect(collision, { x, y, width, height }) {
  * @param {{id: string, name: string, kind: "home" | "work", trade?: string,
  *   look?: object, furniture?: string[]}[]} built
  * @param {object} game
- * @param {import("./TileMap").TileMap} game.villageTiles
+ * @param {CanvasRenderingContext2D} game.background Of the village.
+ * @param {CanvasRenderingContext2D} game.foreground
  * @param {import("../utils/collisionGrid").CollisionGrid} game.collision
  * @param {import("./Interiors").Interiors} game.interiors
  * @param {import("./Village").Village} game.village
  */
 export function applyVillageLayout(
   built,
-  { villageTiles, collision, interiors, village },
+  { background, foreground, collision, interiors, village },
 ) {
   const houses = [];
 
@@ -90,7 +91,7 @@ export function applyVillageLayout(
     ];
 
     const room = buildRoom(roomFor(trade, seed, building.furniture));
-    const interior = addLotInterior(building, room);
+    const interior = addInterior(building, room);
     rasterizeArea(collision.rows, interior);
     interiors.addRoom(interior);
   }
@@ -99,13 +100,7 @@ export function applyVillageLayout(
 
   pathfinder.update(collision);
 
-  // The houses are drawn once the tiles of the village are (or the tiles
-  // would cover them)
-  villageTiles.ready.then(() => {
-    const background = villageTiles.background.image.getContext("2d");
-    const foreground = villageTiles.foreground.image.getContext("2d");
-    houses.forEach((house) => house.paint(background, foreground));
-    // Snow, autumn and footprints know the new houses
-    village.terrain = null;
-  });
+  houses.forEach((house) => house.paint(background, foreground));
+  // Snow, autumn and footprints know the new houses
+  village.terrain = null;
 }

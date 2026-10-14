@@ -4,6 +4,9 @@ import {
   BUILDINGS,
   BUSHES,
   CAMPFIRE,
+  CAT_HOME,
+  FIREFLY_AREAS,
+  TREE_CROWNS,
   CHICKEN_YARDS,
   FISH_SPOTS,
 } from "../levels/decor";
@@ -22,20 +25,6 @@ import * as sprites from "./sprites";
 const randomBetween = (min, max) => min + Math.random() * (max - min);
 const FEET = 11;
 
-// Where the cat lives (in front of the tavern) and the crowns of the trees
-// of the garden (falling leaves)
-const CAT_HOME = { x: 548, y: 172 };
-const TREE_CROWNS = [
-  { x: 396, y: 206 },
-  { x: 468, y: 206 },
-];
-// Where the fireflies fly at night
-const FIREFLY_AREAS = [
-  { x: 432, y: 240 },
-  { x: 330, y: 96 },
-  { x: 740, y: 170 },
-  { x: 230, y: 300 },
-];
 const BUTTERFLY_COLORS = ["#ffffff", "#f2d064", "#ff9ec4", "#9fc4ff"];
 const SCARE_DISTANCE = 30;
 

@@ -224,10 +224,7 @@ function drawFront(ctx, spec, random, x, top, width, height) {
   const doorWidth = 10;
   const doorHeight = Math.min(17, height - 6);
   const slots = Math.max(1, Math.floor((width - doorWidth) / 14));
-  const doorX =
-    spec.windows >= 2 || width < 60
-      ? x + Math.round((width - doorWidth) / 2)
-      : x + 5 + random.int(0, 1) * (width - doorWidth - 10);
+  const doorX = x + doorOffset(spec);
   const door = {
     x: doorX,
     y: top + height - doorHeight,
@@ -691,6 +688,35 @@ export function houseFromLook(look, trade, seed) {
   };
 }
 
+/** Where the door is, from the left of the walls (pixels). */
+export function doorOffset(spec) {
+  const doorWidth = 10;
+  if (spec.door === "left") return 5;
+  if (spec.door === "right") return spec.width - doorWidth - 5;
+  return Math.round((spec.width - doorWidth) / 2);
+}
+
+/**
+ * Where a house stands, without drawing it (for the layout of the village):
+ * the door (center of the doorstep), the whole drawing and the blocked
+ * rectangle (walls and the lower part of the roof).
+ */
+export function houseFootprint(spec, at) {
+  const { height, roofHeight } = houseSize(spec);
+  const blockedTop = at.ground - height + Math.round(roofHeight * 0.55);
+
+  return {
+    door: { x: at.x + doorOffset(spec) + 5, y: at.ground },
+    area: { x: at.x - 4, y: at.ground - height, width: spec.width + 8, height },
+    blocked: {
+      x: at.x - 2,
+      y: blockedTop,
+      width: spec.width + 4,
+      height: at.ground - blockedTop,
+    },
+  };
+}
+
 /**
  * A house for the map at `at` (left of the walls and the ground): its door,
  * windows, chimney, the whole drawing (area), the blocked rectangle (walls
@@ -738,20 +764,14 @@ export function buildHouse(spec, at) {
   };
 
   const offset = (point) => point && { x: point.x + left, y: point.y + top };
+  const footprint = houseFootprint(spec, at);
   return {
     paint,
-    door: { x: drawn.door.x + drawn.door.width / 2 + left, y: at.ground },
+    ...footprint,
     windows: drawn.windows.map(offset),
     chimney: drawn.chimney && {
       x: drawn.chimney.x + left,
       y: drawn.chimney.y + top + 10,
-    },
-    area: { x: at.x - 4, y: at.ground - height, width: spec.width + 8, height },
-    blocked: {
-      x: at.x - 2,
-      y: top + split,
-      width: spec.width + 4,
-      height: at.ground - (top + split),
     },
   };
 }

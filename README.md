@@ -195,16 +195,18 @@ A frequência das conversas é configurada em `NPC_CHAT`, no arquivo `frontend/s
 
 Cada partida é independente: na primeira vez, o backend gera um novo mundo e novos NPCs. Ao recarregar a página, o jogo retoma a mesma partida, que fica salva no Redis por 7 dias sem ser jogada (ver `SESSION_TTL_DAYS`), mesmo que o backend seja reiniciado. Para começar uma vila nova, apague a chave `dinamic-rpg:session` do `localStorage` do navegador (ou abra o jogo numa janela anônima).
 
-## Editando o mapa (Tiled)
+## A ilha gerada e os mapas do Tiled
 
-O mapa da vila, os interiores e as regiões são desenhados tile a tile a partir dos arquivos do [Tiled](https://www.mapeditor.org/) em `frontend/tiled/` (`game-test-map.tmx`, `interiors/*.tmx` e `regions/*.tmx`; as imagens dos tilesets ficam em `frontend/public/tilesets/`). Depois de editar um mapa no Tiled, gere o arquivo usado pelo jogo:
+A vila é uma ilha gerada a partir de uma semente, guardada no navegador junto com a partida salva: continuar uma partida desenha a mesma ilha, e cada novo jogo cria outra. A geração (`frontend/src/world/island/`) decide o formato da ilha (com falésias e praias), a praça no meio, a taverna, o armazém, a casa e os terrenos vazios ao redor, o píer, as estradas ligando as portas, a plantação cercada com o moinho, hortas cercadas perto das casas, árvores, postes, placas, baús, o poço e os lugares usados nas rotinas e nos prompts. Todos os prédios e interiores são desenhados por código (`world/procedural/`). Os testes geram dezenas de ilhas e conferem que todos os lugares, portas e objetos podem ser alcançados.
+
+As regiões visitadas de barco continuam sendo mapas do [Tiled](https://www.mapeditor.org/) em `frontend/tiled/regions/*.tmx` (as imagens dos tilesets ficam em `frontend/public/tilesets/`). Depois de editar um mapa no Tiled, gere o arquivo usado pelo jogo:
 
 ```bash
 # Em frontend/
 npm run maps
 ```
 
-Convenções: a camada `Collisions` define onde não se anda, camadas que começam com `Foreground` são desenhadas por cima dos personagens e, nos interiores, a camada de objetos `Points` tem a entrada (`entrance`), o tapete de saída (`exit`), os lugares onde os moradores ficam (tipo `spot`), os balcões (`counter`), a cama (`rest`) e as luzes (tipo `light`). Nas regiões, `Points` tem a chegada do barco (`arrival`), as árvores (`tree`), as pedras (`ore`), os cristais (`crystal`), os arbustos (`forage`), os comerciantes (`merchant`) e o acampamento (`camp`, `camp_chest`). Os terrenos vazios onde o modelo pode construir estão em `src/levels/decor.js` (`LOTS`).
+Convenções dos mapas do Tiled: a camada `Collisions` define onde não se anda, camadas que começam com `Foreground` são desenhadas por cima dos personagens e a camada de objetos `Points` tem a chegada do barco (`arrival`), as árvores (`tree`), as pedras (`ore`), os cristais (`crystal`), os arbustos (`forage`), os comerciantes (`merchant`) e o acampamento (`camp`, `camp_chest`).
 
 ## Testes e lint
 
@@ -286,7 +288,10 @@ frontend/src/
   world/Interiors.js       Entrar e sair dos prédios, moradores lá dentro, balcões, cama e luz interna
   world/Regions.js         Viagens de barco, floresta, mina e vila vizinha (comércio e acampamento)
   world/VillageLayout.js   Coloca nos terrenos os prédios da vila planejada pelo modelo
-  world/procedural/        Pixel art gerada por código: casas (houses.js), interiores e
+  world/island/            Ilha gerada: formato, prédios, estradas, cercas, hortas, árvores e
+                           objetos (layout.js, puro e testado) e o desenho (paint.js)
+  world/procedural/        Pixel art gerada por código: casas (houses.js), móveis
+                           (furniture.js), interiores e
                            posicionamento dos móveis (rooms.js)
   hud/ChoiceMenu/          Menu de escolhas (viagem e comércio)
   hud/MainMenu/            Menu inicial: continuar a partida salva ou começar um novo jogo

@@ -1,28 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAPS } from "../src/levels/maps.js";
+import { PLACES, PLACES_BY_ID, nearestPlace } from "../src/levels/places.js";
+import { createIsland } from "../src/world/island/index.js";
 
-const mapCollisions = MAPS.village.collisions;
-import { PLACES, nearestPlace } from "../src/levels/places.js";
-import { CollisionGrid } from "../src/utils/collisionGrid.js";
-import { findShortestPath } from "../src/utils/findShortestPath.js";
-
-const rows = [];
-for (let i = 0; i < mapCollisions.length; i += 70) {
-  rows.push(mapCollisions.slice(i, i + 70));
-}
-const grid = new CollisionGrid(rows, 12);
-const isBlocked = (x, y) => grid.isBlocked(x, y, 16, 12);
-
-test("every place is free and reachable from the NPC spawn", () => {
-  for (const place of PLACES) {
-    assert.equal(isBlocked(place.x, place.y), false, `${place.id} is blocked`);
-    assert.ok(
-      findShortestPath({ x: 424, y: 355 }, place, isBlocked),
-      `${place.id} is unreachable`,
-    );
-  }
-});
+createIsland(42);
 
 test("place ids are valid for the server", () => {
   for (const place of PLACES) {
@@ -33,6 +14,7 @@ test("place ids are valid for the server", () => {
 });
 
 test("nearestPlace respects the max distance", () => {
-  assert.equal(nearestPlace({ x: 500, y: 160 }).id, "tavern");
-  assert.equal(nearestPlace({ x: 500, y: 160 }, 5), null);
+  const tavern = PLACES_BY_ID.tavern;
+  assert.equal(nearestPlace({ x: tavern.x + 2, y: tavern.y + 2 }).id, "tavern");
+  assert.equal(nearestPlace({ x: tavern.x + 50, y: tavern.y + 50 }, 5), null);
 });

@@ -69,7 +69,7 @@ const key = (x, y) => y * 65536 + x;
  *   expanding this many nodes so unreachable targets don't hang the worker.
  * @returns {{x: number, y: number}[] | null} Path including start and target.
  */
-export function findShortestPath(start, target, isBlocked, maxNodes = 200000) {
+export function findShortestPath(start, target, isBlocked, maxNodes = 600000) {
   const startX = Math.round(start.x);
   const startY = Math.round(start.y);
   const targetX = Math.round(target.x);

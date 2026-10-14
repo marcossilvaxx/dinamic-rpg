@@ -20,7 +20,6 @@ import { notifications } from "./hud/Notifications";
 import { overhearLog } from "./hud/OverhearLog";
 import { statusBanner } from "./hud/StatusBanner";
 import {
-  VILLAGE,
   VILLAGE_HEIGHT,
   VILLAGE_WIDTH,
   worldCollisionRows,
@@ -47,9 +46,14 @@ import { pathfinder } from "./utils/pathfinding";
 import { ChoiceMenu } from "./hud/ChoiceMenu";
 import { Interiors } from "./world/Interiors";
 import { Regions } from "./world/Regions";
-import { TileMap } from "./world/TileMap";
 import { Village } from "./world/Village";
 import { applyVillageLayout } from "./world/VillageLayout";
+import { createIsland, paintIsland } from "./world/island";
+import {
+  islandSeed,
+  startNewIsland,
+  takeNewGameRequest,
+} from "./world/island/seed";
 import { LOTS } from "./levels/decor";
 
 const canvas = document.querySelector("#game-canvas");
@@ -59,11 +63,14 @@ const mainScene = new GameObject({
   position: new Vector2(0, 0),
 });
 
-// The village is drawn tile by tile from the Tiled map (src/levels/maps.js)
-const villageTiles = new TileMap(VILLAGE);
+// The island is generated from a seed (kept with the saved game): its layout
+// fills the places, props and collisions, then it is drawn
+const island = createIsland(islandSeed());
+const islandImages = paintIsland(island);
+const villageImage = { image: islandImages.background, isLoaded: true };
 const map1 = new Map({
-  resource: villageTiles.background,
-  foregroundResource: villageTiles.foreground,
+  resource: villageImage,
+  foregroundResource: { image: islandImages.foreground, isLoaded: true },
   width: VILLAGE_WIDTH,
   height: VILLAGE_HEIGHT,
 });
@@ -76,7 +83,10 @@ const camera = new Camera({
   mapHeight: map1.height,
 });
 
-const heroInitialPosition = new Vector2(424, 225);
+const heroInitialPosition = new Vector2(
+  PLACES_BY_ID.garden.x,
+  PLACES_BY_ID.garden.y,
+);
 
 const hero = new Hero(heroInitialPosition.x, heroInitialPosition.y, 16, 12); // 16 -> Object "hitbox" size w and h
 
@@ -193,7 +203,7 @@ const minimap = new Minimap({
     regions.isAway ? PLACES_BY_ID.dock : interiors.mapPosition(hero),
   getNpcs: () => [...npcs.values()],
   positionOf: (npc) => interiors.mapPosition(npc),
-  mapImage: villageTiles.background,
+  mapImage: villageImage,
 });
 
 // Pause (P): the scene stops here and the time of the village stops in the
@@ -274,7 +284,10 @@ const storage = {
 
 let isResumed = false;
 
-const NPC_SPAWN = new Vector2(424, 355);
+const NPC_SPAWN = new Vector2(
+  PLACES_BY_ID.south_road.x,
+  PLACES_BY_ID.south_road.y,
+);
 
 // A free position close to `center`, so NPCs don't start stacked
 const npcSpawnPosition = (center = NPC_SPAWN) => {
@@ -399,12 +412,20 @@ const startGame = ({ resume }) => {
 
 const mainMenu = new MainMenu({
   onContinue: () => startGame({ resume: true }),
-  onNewGame: () => startGame({ resume: false }),
+  // A new island is built after a reload (see world/island/seed.js)
+  onNewGame: () => startNewIsland(),
 });
 mainScene.input.blocked = true;
+const newGameRequested = takeNewGameRequest();
 
 // Is there a saved game to continue?
 gameSocket.on("open", () => {
+  if (newGameRequested) {
+    mainMenu.hide();
+    startGame({ resume: false });
+    return;
+  }
+
   const savedId = storage.get();
   if (savedId) {
     gameSocket.send(protocol.SESSION_INFO, { data: { sessionId: savedId } });
@@ -429,7 +450,8 @@ gameSocket.on(protocol.SESSION, ({ data }) => {
 // What the village plan built on the empty lots (before the NPCs arrive)
 gameSocket.on(protocol.VILLAGE_LAYOUT, ({ data }) => {
   applyVillageLayout(data.lots, {
-    villageTiles,
+    background: islandImages.background.getContext("2d"),
+    foreground: islandImages.foreground.getContext("2d"),
     collision,
     interiors,
     village,
@@ -639,6 +661,8 @@ if (import.meta.env.DEV) {
     village,
     interiors,
     regions,
+    island,
+    places: PLACES_BY_ID,
   };
 }
 

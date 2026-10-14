@@ -1,44 +1,38 @@
-// Layout of the world: the village map and, to the right of it (out of
-// sight), the interiors of the buildings and the regions reached by boat. Everything shares one collision
+// Layout of the world: the village (generated island) and, to the right of
+// it (out of sight), the interiors of the buildings and the regions reached
+// by boat. Everything shares one collision
 // grid of 12 px tiles, so walking, pathfinding and fights work the same
 // inside. No browser imports on purpose: shared with the node tests.
 
 import { MAPS } from "./maps.js";
 
 export const TILE = 12;
-export const VILLAGE = MAPS.village;
+// The village is generated (world/island): its collisions are filled by
+// applyIsland. The Tiled map (MAPS.village) stays only as a reference.
+export const VILLAGE = {
+  width: 70,
+  height: 40,
+  tileWidth: TILE,
+  tileHeight: TILE,
+  collisions: [...MAPS.village.collisions],
+};
 export const VILLAGE_WIDTH = VILLAGE.width * VILLAGE.tileWidth;
 export const VILLAGE_HEIGHT = VILLAGE.height * VILLAGE.tileHeight;
 
-// Interiors: `placeId` is the place of the village with the door
-export const INTERIORS = [
-  {
-    id: "tavern",
-    placeId: "tavern",
-    name: "Taverna",
-    origin: { x: 900, y: 0 },
-  },
-  {
-    id: "west_house",
-    placeId: "west_house",
-    name: "Casa do oeste",
-    origin: { x: 1200, y: 0 },
-  },
-  {
-    id: "east_house",
-    placeId: "east_house",
-    name: "Armazém",
-    origin: { x: 1440, y: 0 },
-  },
-].map((interior) => {
-  const map = MAPS[interior.id];
-  return {
-    ...interior,
-    map,
-    width: map.width * map.tileWidth,
-    height: map.height * map.tileHeight,
-  };
-});
+/** Replaces the collisions of the village (from a generated island). */
+export function applyVillageCollisions(collisions) {
+  VILLAGE.collisions = [...collisions];
+}
+
+// Interiors: `placeId` is the place of the village with the door. Filled
+// when the island is drawn (rooms drawn with code, see addInterior)
+export const INTERIORS = [];
+// Where the interiors of the buildings that always exist go
+export const BUILDING_INTERIOR_ORIGINS = {
+  tavern: { x: 900, y: 0 },
+  west_house: { x: 1200, y: 0 },
+  east_house: { x: 1440, y: 0 },
+};
 
 // Places beyond the island, reached by boat (see backend game/Regions.js)
 export const REGIONS = [
@@ -74,30 +68,25 @@ export const LOT_INTERIOR_ORIGINS = {
   lot_garden: { x: 3768, y: 0 },
   lot_east: { x: 4068, y: 0 },
 };
-const LOT_TEMPLATES = { home: "west_house", work: "east_house" };
 const LOT_MAX_WIDTH = 224;
 
-// Interiors and regions: maps placed out of the village (lots are added
-// when the village plan arrives)
-const AREAS = [...INTERIORS, ...REGIONS];
+// Interiors and regions: maps placed out of the village (interiors are
+// added when the island is drawn and when the village plan arrives)
+const AREAS = () => [...INTERIORS, ...REGIONS];
 
-export const INTERIORS_BY_ID = Object.fromEntries(
-  INTERIORS.map((interior) => [interior.id, interior]),
-);
-export const INTERIORS_BY_PLACE = Object.fromEntries(
-  INTERIORS.map((interior) => [interior.placeId, interior]),
-);
+export const INTERIORS_BY_ID = {};
+export const INTERIORS_BY_PLACE = {};
 
 export const WORLD_COLUMNS = Math.ceil(
   Math.max(
-    ...AREAS.map(({ origin, width }) => origin.x + width),
+    ...REGIONS.map(({ origin, width }) => origin.x + width),
     ...Object.values(LOT_INTERIOR_ORIGINS).map(({ x }) => x + LOT_MAX_WIDTH),
   ) / TILE,
 );
 export const WORLD_ROWS = Math.max(
   VILLAGE.height,
   Math.ceil(
-    Math.max(...AREAS.map(({ origin, height }) => origin.y + height)) / TILE,
+    Math.max(...REGIONS.map(({ origin, height }) => origin.y + height)) / TILE,
   ),
 );
 
@@ -139,7 +128,7 @@ export function worldCollisionRows() {
     rows[Math.floor(i / VILLAGE.width)][i % VILLAGE.width] = value ? 1 : 0;
   });
 
-  AREAS.forEach((area) => rasterizeArea(rows, area));
+  AREAS().forEach((area) => rasterizeArea(rows, area));
 
   return rows;
 }
@@ -171,21 +160,20 @@ export function rasterizeArea(rows, { origin, width, height, map }) {
 }
 
 /**
- * Adds the interior of a house built on a lot ({ id, name, kind }): a room
- * drawn with code ({ canvas, map }, see world/procedural/rooms.js) or, without
- * it, a copy of an interior made in Tiled.
+ * Adds the interior of a building: a room drawn with code ({ canvas, map },
+ * see world/procedural/rooms.js) at the origin of the building (the three
+ * that always exist and the lots).
  */
-export function addLotInterior({ id, name, kind }, room = null) {
-  const map = room?.map ?? MAPS[LOT_TEMPLATES[kind] ?? LOT_TEMPLATES.home];
+export function addInterior({ id, name }, room) {
   const interior = {
     id,
     placeId: id,
     name,
-    origin: LOT_INTERIOR_ORIGINS[id],
-    map,
-    canvas: room?.canvas ?? null,
-    width: map.width * map.tileWidth,
-    height: map.height * map.tileHeight,
+    origin: BUILDING_INTERIOR_ORIGINS[id] ?? LOT_INTERIOR_ORIGINS[id],
+    map: room.map,
+    canvas: room.canvas ?? null,
+    width: room.map.width * room.map.tileWidth,
+    height: room.map.height * room.map.tileHeight,
   };
 
   INTERIORS.push(interior);

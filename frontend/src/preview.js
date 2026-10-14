@@ -4,7 +4,13 @@
 import { LOTS } from "./levels/decor";
 import { MAPS } from "./levels/maps";
 import { seeded } from "./world/procedural/pixel";
-import { drawHouse, houseFor, houseSize } from "./world/procedural/houses";
+import {
+  buildHouse,
+  drawHouse,
+  houseFor,
+  houseSize,
+} from "./world/procedural/houses";
+import { createIsland, paintIsland } from "./world/island";
 import { drawRoom, roomFor } from "./world/procedural/rooms";
 import { TileMap } from "./world/TileMap";
 
@@ -93,44 +99,26 @@ async function render() {
     drawHouse(ctx, spec, 12, 8);
   });
 
-  // Generated houses on the lots of the real village map
-  const area = { x: 180, y: 0, width: 600, height: 300 };
-  const map = figure(
-    villageRow,
-    area.width,
-    area.height,
-    "Vila com casas geradas nos terrenos",
-  );
-  map.drawImage(
-    village.background.image,
-    area.x,
-    area.y,
-    area.width,
-    area.height,
-    0,
-    0,
-    area.width,
-    area.height,
-  );
-  const lotKinds = ["bakery", "smithy", "clinic", "home"];
-  LOTS.forEach((lot, i) => {
-    const spec = { ...houseFor(lotKinds[i], round * 50 + i), width: 60 };
-    const { height } = houseSize(spec);
-    const x = lot.column * 12 + 6 - area.x;
-    const y = (lot.row + 8) * 12 - height - area.y;
-    drawHouse(map, spec, x, y);
-  });
-  map.drawImage(
-    village.foreground.image,
-    area.x,
-    area.y,
-    area.width,
-    area.height,
-    0,
-    0,
-    area.width,
-    area.height,
-  );
+  // Whole islands generated from different seeds (with their buildings)
+  for (let i = 0; i < 3; i++) {
+    const seed = round * 7919 + i * 104729;
+    const layout = createIsland(seed);
+    const { background, foreground } = paintIsland(layout);
+    const ctx = figure(villageRow, 840, 480, `Ilha da semente ${seed}`);
+    ctx.drawImage(background, 0, 0);
+    ctx.drawImage(foreground, 0, 0);
+    // Houses the village plan could build on the lots
+    LOTS.forEach((lot, j) => {
+      const spec = {
+        ...houseFor(["bakery", "smithy", "clinic", "home"][j], seed + j),
+        width: 60,
+      };
+      buildHouse(spec, {
+        x: lot.column * 12 + 6,
+        ground: (lot.row + 7) * 12 + 2,
+      }).paint(ctx, ctx);
+    });
+  }
 
   // Interiors of the tilesets, then generated ones
   interiors.forEach(([id, tileMap]) => {

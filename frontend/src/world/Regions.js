@@ -2,6 +2,7 @@ import { sound } from "../audio/sound";
 import { GameObject } from "../GameObject";
 import { DOWN } from "../Input";
 import { placeBanner } from "../hud/PlaceBanner";
+import { VILLAGE_BOAT } from "../levels/decor";
 import { PLACES_BY_ID } from "../levels/places";
 import {
   REGIONS,
@@ -27,8 +28,6 @@ import { lampsLit } from "./rules";
 import * as sprites from "./sprites";
 import { TileMap } from "./TileMap";
 
-// Where the boat leaves from in the village (left part of the pier)
-export const VILLAGE_BOAT = { x: 102, y: 356 };
 const INTERACT_DISTANCE = 18;
 
 // Merchants of the town (see backend game/Regions.js)
