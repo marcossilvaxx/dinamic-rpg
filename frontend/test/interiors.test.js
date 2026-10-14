@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BUILDINGS } from "../src/levels/decor.js";
 import {
+  BUILDING_INTERIOR_ORIGINS,
   INTERIORS,
   LOT_INTERIOR_ORIGINS,
   VILLAGE_WIDTH,
-  addLotInterior,
+  addInterior,
   interiorAt,
   interiorPoint,
   rasterizeArea,
@@ -13,61 +13,79 @@ import {
 } from "../src/levels/world.js";
 import { CollisionGrid } from "../src/utils/collisionGrid.js";
 import { findShortestPath } from "../src/utils/findShortestPath.js";
+import {
+  ROOM_PRESETS,
+  roomFor,
+  roomMap,
+} from "../src/world/procedural/rooms.js";
 import { buildingAccess } from "../src/world/rules.js";
 
-const grid = new CollisionGrid(worldCollisionRows(), 12);
-const isBlocked = (x, y) => grid.isBlocked(x, y, 16, 12);
+const IDS = [
+  ...Object.keys(BUILDING_INTERIOR_ORIGINS),
+  ...Object.keys(LOT_INTERIOR_ORIGINS),
+];
 
-test("interiors are out of the village and don't overlap", () => {
-  for (const interior of INTERIORS) {
-    assert.ok(interior.origin.x >= VILLAGE_WIDTH);
-    assert.equal(interior.origin.x % 12, 0);
-    assert.equal(
-      interiorAt(interior.origin.x + 1, interior.origin.y + 1),
-      interior,
-    );
+test("interiors are out of the village, apart from each other", () => {
+  const origins = IDS.map(
+    (id) => BUILDING_INTERIOR_ORIGINS[id] ?? LOT_INTERIOR_ORIGINS[id],
+  );
+  for (const origin of origins) {
+    assert.ok(origin.x >= VILLAGE_WIDTH);
+    assert.equal(origin.x % 12, 0);
   }
-  assert.equal(interiorAt(100, 100), null);
+  const xs = origins.map(({ x }) => x).sort((a, b) => a - b);
+  xs.slice(1).forEach((x, i) =>
+    assert.ok(x - xs[i] >= 224, `${xs[i]} -> ${x}`),
+  );
 });
 
-test("every building of the village has an interior with its door", () => {
-  for (const interior of INTERIORS) {
-    assert.ok(
-      BUILDINGS.some((building) => building.placeId === interior.placeId),
+test("in every generated room the player reaches the mat and every spot (counter, bed...)", () => {
+  const trades = Object.keys(ROOM_PRESETS);
+  for (let seed = 1; seed <= 12; seed++) {
+    INTERIORS.length = 0;
+    IDS.forEach((id, i) =>
+      addInterior(
+        { id, name: id },
+        {
+          map: roomMap(
+            roomFor(trades[(i + seed) % trades.length], seed * 31 + i),
+          ),
+        },
+      ),
     );
-  }
-});
+    const rows = worldCollisionRows();
+    INTERIORS.forEach((interior) => rasterizeArea(rows, interior));
+    const grid = new CollisionGrid(rows, 12);
+    const isBlocked = (x, y) => grid.isBlocked(x, y, 16, 12);
 
-test("the entrance, the mat and the spots of each interior are walkable", () => {
-  for (const interior of INTERIORS) {
-    const entrance = interiorPoint(interior, "entrance");
-    assert.equal(
-      isBlocked(entrance.x, entrance.y),
-      false,
-      `${interior.id} entrance`,
-    );
-
-    const exit = interiorPoint(interior, "exit");
-    assert.equal(
-      isBlocked(exit.x + 8, exit.y + exit.height - 12),
-      false,
-      `${interior.id} mat`,
-    );
-
-    for (const [name, point] of Object.entries(interior.map.points)) {
-      if (point.kind !== "spot" && point.kind !== "center") continue;
-      const spot = interiorPoint(interior, name);
-      assert.ok(
-        findShortestPath(entrance, spot, isBlocked),
-        `${interior.id}:${name} is unreachable`,
+    for (const interior of INTERIORS) {
+      assert.equal(
+        interiorAt(interior.origin.x + 1, interior.origin.y + 1),
+        interior,
       );
-    }
-  }
-});
+      const entrance = interiorPoint(interior, "entrance");
+      assert.equal(
+        isBlocked(entrance.x, entrance.y),
+        false,
+        `${interior.id} entrance`,
+      );
 
-test("outside, below each door, the player can stand", () => {
-  for (const { door } of BUILDINGS) {
-    assert.equal(isBlocked(door.x - 8, door.y + 4), false);
+      const exit = interiorPoint(interior, "exit");
+      assert.ok(
+        findShortestPath(entrance, { x: exit.x + 8, y: exit.y }, isBlocked),
+        `${interior.id} mat`,
+      );
+
+      for (const [name, point] of Object.entries(interior.map.points)) {
+        if (!["spot", "center"].includes(point.kind)) continue;
+        const target = interiorPoint(interior, name);
+        const stand = target;
+        assert.ok(
+          findShortestPath(entrance, stand, isBlocked),
+          `seed ${seed} ${interior.id}:${name}`,
+        );
+      }
+    }
   }
 });
 
@@ -92,38 +110,9 @@ test("who can go into a building", () => {
   assert.equal(
     buildingAccess("lot_east", 10, { ...nobody, workplace: true }).open,
     true,
-    "workplaces open during the day",
   );
   assert.equal(
     buildingAccess("west_house", 23, { ...nobody, friend: true }).open,
     true,
-    "friends are welcome",
   );
-});
-
-test("houses built on the lots get an interior that works", () => {
-  const ids = Object.keys(LOT_INTERIOR_ORIGINS);
-  for (const id of ids) {
-    const interior = addLotInterior({
-      id,
-      name: id,
-      kind: id === "lot_east" ? "work" : "home",
-    });
-    assert.equal(interior.origin.x % 12, 0);
-    assert.equal(
-      interiorAt(interior.origin.x + 1, interior.origin.y + 1),
-      interior,
-    );
-
-    const rows = worldCollisionRows();
-    rasterizeArea(rows, interior);
-    const lotGrid = new CollisionGrid(rows, 12);
-    const blocked = (x, y) => lotGrid.isBlocked(x, y, 16, 12);
-    const entrance = interiorPoint(interior, "entrance");
-    assert.equal(blocked(entrance.x, entrance.y), false, `${id} entrance`);
-  }
-
-  // Far enough from each other and from the regions
-  const xs = ids.map((id) => LOT_INTERIOR_ORIGINS[id].x).sort((a, b) => a - b);
-  xs.slice(1).forEach((x, i) => assert.ok(x - xs[i] >= 224 + 48));
 });

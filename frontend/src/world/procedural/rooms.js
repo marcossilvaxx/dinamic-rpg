@@ -3,7 +3,16 @@
 // The furniture list can come from the language model (the trade of who
 // lives there), so a clinic gets cots and herbs, a smithy a forge.
 
+import {
+  CLUTTER,
+  CLUTTER_FOR,
+  FURNITURE,
+  WALL_DECOR,
+  WALL_DECOR_FOR,
+} from "./furniture.js";
 import { OUTLINE, rect, seeded, shade } from "./pixel.js";
+
+export { FURNITURE };
 
 const T = 16; // Tile size of the interiors
 
@@ -18,474 +27,6 @@ const ROOM_WALLS = {
   wood: "#a8714a",
   stone: "#8a8f96",
 };
-const FABRICS = ["#c4475d", "#3f7fc4", "#4c9a52", "#8a5ab8", "#d98a3a"];
-
-// ---------------------------------------------------------------------------
-// Furniture: size in tiles, where it goes and how it is drawn (x, y = top
-// left of its tiles; tall pieces are drawn above them, against the wall)
-
-const box = (ctx, color, x, y, width, height) => {
-  rect(ctx, OUTLINE, x - 1, y - 1, width + 2, height + 2);
-  rect(ctx, color, x, y, width, height);
-  if (width > 3 && height > 3) {
-    rect(ctx, shade(color, 0.18), x, y, width, 1);
-    rect(ctx, shade(color, -0.22), x, y + height - 1, width, 1);
-    rect(ctx, shade(color, -0.12), x + width - 1, y + 1, 1, height - 2);
-  }
-};
-
-export const FURNITURE = {
-  bed: {
-    size: [2, 3],
-    place: "wall",
-    draw(ctx, x, y, random) {
-      const blanket = random.pick(FABRICS);
-      box(ctx, "#7d5232", x + 2, y - 6, 28, 8);
-      rect(ctx, "#9a6240", x + 3, y - 5, 26, 2);
-      box(ctx, "#f4ede0", x + 3, y + 2, 26, 40);
-      rect(ctx, "#ffffff", x + 6, y + 4, 20, 8);
-      rect(ctx, "#d9d1c0", x + 6, y + 11, 20, 1);
-      rect(ctx, blanket, x + 3, y + 16, 26, 26);
-      rect(ctx, shade(blanket, 0.2), x + 3, y + 16, 26, 3);
-      rect(ctx, shade(blanket, -0.25), x + 3, y + 40, 26, 2);
-      box(ctx, "#7d5232", x + 2, y + 42, 28, 4);
-    },
-  },
-  cot: {
-    size: [1, 2],
-    place: "wall",
-    draw(ctx, x, y) {
-      box(ctx, "#8a8f96", x + 2, y + 2, 12, 28);
-      rect(ctx, "#f4ede0", x + 3, y + 3, 10, 26);
-      rect(ctx, "#ffffff", x + 4, y + 4, 8, 5);
-      rect(ctx, "#cfd8e6", x + 3, y + 14, 10, 15);
-    },
-  },
-  table: {
-    size: [2, 2],
-    place: "floor",
-    draw(ctx, x, y, random) {
-      rect(ctx, "rgba(0,0,0,0.2)", x + 3, y + 26, 28, 4);
-      rect(ctx, "#5a3626", x + 4, y + 18, 3, 10);
-      rect(ctx, "#5a3626", x + 25, y + 18, 3, 10);
-      box(ctx, "#b07848", x + 2, y + 4, 28, 16);
-      for (let px = x + 6; px < x + 30; px += 8) {
-        rect(ctx, "#9a6240", px, y + 6, 1, 12);
-      }
-      if (random.chance(0.5)) {
-        const cloth = random.pick(["#f4ede0", "#c4475d", "#3f7fc4"]);
-        rect(ctx, cloth, x + 6, y + 6, 20, 13);
-        rect(ctx, shade(cloth, -0.2), x + 6, y + 18, 20, 3);
-        if (cloth !== "#f4ede0") {
-          for (let px = x + 7; px < x + 26; px += 4)
-            rect(ctx, "#f4ede0", px, y + 8, 2, 2);
-        }
-      }
-      // Plates, a cup and a candle
-      for (const px of [x + 6, x + 19]) {
-        rect(ctx, "#e8e2d4", px, y + 9, 7, 4);
-        rect(ctx, "#ffffff", px + 1, y + 9, 5, 1);
-        if (random.chance(0.6))
-          rect(
-            ctx,
-            random.pick(["#e3a24c", "#c4475d", "#7cbf5b"]),
-            px + 2,
-            y + 10,
-            3,
-            2,
-          );
-      }
-      if (random.chance(0.7)) {
-        box(ctx, "#d9cdb0", x + 15, y + 6, 3, 4);
-      }
-      if (random.chance(0.6)) {
-        rect(ctx, "#f4ede0", x + 14, y + 13, 2, 4);
-        rect(ctx, "#ffd84a", x + 14, y + 11, 2, 2);
-        rect(ctx, "#fff6c8", x + 14, y + 11, 1, 1);
-      }
-    },
-  },
-  stool: {
-    size: [1, 1],
-    place: "floor",
-    draw(ctx, x, y, random) {
-      const backrest = random.chance(0.6);
-      rect(ctx, "rgba(0,0,0,0.2)", x + 2, y + 13, 12, 3);
-      rect(ctx, "#5a3626", x + 3, y + 9, 2, 6);
-      rect(ctx, "#5a3626", x + 11, y + 9, 2, 6);
-      if (backrest) {
-        box(ctx, "#8a5a38", x + 3, y - 1, 10, 4);
-        rect(ctx, "#5a3626", x + 3, y + 3, 2, 4);
-        rect(ctx, "#5a3626", x + 11, y + 3, 2, 4);
-      }
-      box(ctx, "#b07848", x + 2, y + 6, 12, 4);
-    },
-  },
-  shelf: {
-    size: [2, 1],
-    place: "wall",
-    draw(ctx, x, y, random) {
-      box(ctx, "#7d5232", x + 1, y - 24, 30, 38);
-      rect(ctx, "#5a3a26", x + 3, y - 22, 26, 34);
-      for (let level = 0; level < 3; level++) {
-        const sy = y - 22 + level * 12;
-        rect(ctx, "#9a6240", x + 3, sy + 10, 26, 2);
-        for (let px = x + 4; px < x + 27;) {
-          const width = random.int(2, 4);
-          const height = random.int(6, 9);
-          rect(ctx, random.pick(FABRICS), px, sy + 10 - height, width, height);
-          px += width + (random.chance(0.3) ? 2 : 0);
-        }
-      }
-    },
-  },
-  bottles: {
-    size: [2, 1],
-    place: "wall",
-    draw(ctx, x, y, random) {
-      box(ctx, "#7d5232", x + 1, y - 20, 30, 32);
-      rect(ctx, "#5a3a26", x + 3, y - 18, 26, 28);
-      for (let level = 0; level < 2; level++) {
-        const sy = y - 18 + level * 14;
-        rect(ctx, "#9a6240", x + 3, sy + 12, 26, 2);
-        for (let px = x + 5; px < x + 27; px += 5) {
-          const color = random.pick([
-            "#4cb06a",
-            "#6aa6c8",
-            "#c4475d",
-            "#e8c45a",
-          ]);
-          rect(ctx, color, px, sy + 5, 3, 7);
-          rect(ctx, "#d9d1c0", px + 1, sy + 3, 1, 2);
-        }
-      }
-    },
-  },
-  stove: {
-    size: [2, 1],
-    place: "wall",
-    draw(ctx, x, y) {
-      rect(ctx, "#3d3a40", x + 13, y - 28, 6, 18);
-      box(ctx, "#4a474f", x + 3, y - 10, 26, 22);
-      rect(ctx, "#5d5a63", x + 3, y - 10, 26, 3);
-      box(ctx, "#2b2930", x + 9, y - 2, 14, 10);
-      rect(ctx, "#ff8a3a", x + 11, y + 2, 10, 5);
-      rect(ctx, "#ffd36a", x + 13, y + 4, 6, 2);
-    },
-  },
-  fireplace: {
-    size: [3, 1],
-    place: "wall",
-    draw(ctx, x, y) {
-      box(ctx, "#8a8f96", x + 2, y - 24, 44, 36);
-      for (let row = 0; row < 6; row++) {
-        for (let column = 0; column < 6; column++) {
-          rect(
-            ctx,
-            (row + column) % 2 ? "#7a7f86" : "#9aa0a6",
-            x + 3 + column * 7 + (row % 2 ? 3 : 0),
-            y - 23 + row * 6,
-            6,
-            5,
-          );
-        }
-      }
-      box(ctx, "#1f1a1e", x + 12, y - 8, 24, 18);
-      rect(ctx, "#6e4430", x + 15, y + 6, 18, 3);
-      rect(ctx, "#ff6a2a", x + 17, y - 2, 14, 8);
-      rect(ctx, "#ffb43c", x + 20, y, 8, 5);
-      rect(ctx, "#fff0a0", x + 23, y + 2, 3, 2);
-      rect(ctx, "#6e4430", x, y - 26, 48, 3);
-    },
-  },
-  forge: {
-    size: [2, 2],
-    place: "wall",
-    draw(ctx, x, y) {
-      rect(ctx, "#5d5a63", x + 6, y - 26, 20, 18);
-      rect(ctx, "#4a474f", x + 4, y - 10, 24, 4);
-      box(ctx, "#8a8f96", x + 2, y - 6, 28, 30);
-      rect(ctx, "#7a7f86", x + 2, y + 6, 28, 2);
-      box(ctx, "#2b1a14", x + 6, y - 2, 20, 8);
-      rect(ctx, "#ff6a2a", x + 7, y - 1, 18, 6);
-      rect(ctx, "#ffd36a", x + 10, y + 1, 4, 2);
-      rect(ctx, "#ffd36a", x + 17, y, 3, 2);
-    },
-  },
-  anvil: {
-    size: [1, 1],
-    place: "floor",
-    draw(ctx, x, y) {
-      rect(ctx, "rgba(0,0,0,0.25)", x + 2, y + 13, 12, 2);
-      box(ctx, "#6e4430", x + 4, y + 8, 8, 6);
-      box(ctx, "#4a474f", x + 1, y + 3, 14, 5);
-      rect(ctx, "#8a8f96", x + 2, y + 3, 10, 1);
-    },
-  },
-  workbench: {
-    size: [3, 1],
-    place: "wall",
-    draw(ctx, x, y) {
-      rect(ctx, "#6e4430", x + 4, y + 6, 3, 9);
-      rect(ctx, "#6e4430", x + 41, y + 6, 3, 9);
-      box(ctx, "#b07848", x + 2, y - 2, 44, 9);
-      rect(ctx, "#c98f5d", x + 2, y - 2, 44, 2);
-      rect(ctx, "#8a8f96", x + 8, y - 6, 8, 3);
-      rect(ctx, "#6e4430", x + 15, y - 5, 6, 1);
-      rect(ctx, "#c9cfd6", x + 26, y - 5, 10, 2);
-      rect(ctx, "#6e4430", x + 36, y - 5, 4, 2);
-    },
-  },
-  counter: {
-    size: [4, 1],
-    place: "floor",
-    draw(ctx, x, y, random) {
-      box(ctx, "#9a6240", x + 1, y + 2, 62, 12);
-      rect(ctx, "#c98f5d", x + 1, y + 2, 62, 3);
-      for (let px = x + 4; px < x + 60; px += 8)
-        rect(ctx, "#7d5232", px, y + 6, 1, 8);
-      for (let i = 0; i < 4; i++) {
-        box(
-          ctx,
-          random.pick(["#e3a24c", "#c4475d", "#4cb06a", "#e8c45a"]),
-          x + 6 + i * 14,
-          y - 3,
-          6,
-          5,
-        );
-      }
-    },
-  },
-  barrel: {
-    size: [1, 1],
-    place: "corner",
-    draw(ctx, x, y) {
-      box(ctx, "#9a6240", x + 2, y + 1, 12, 14);
-      rect(ctx, "#6e4430", x + 2, y + 4, 12, 1);
-      rect(ctx, "#6e4430", x + 2, y + 11, 12, 1);
-      rect(ctx, "#c98a5a", x + 4, y + 1, 8, 2);
-    },
-  },
-  crate: {
-    size: [1, 1],
-    place: "corner",
-    draw(ctx, x, y) {
-      box(ctx, "#b07848", x + 2, y + 2, 12, 12);
-      rect(ctx, "#7d5232", x + 2, y + 7, 12, 1);
-      rect(ctx, "#7d5232", x + 7, y + 2, 1, 12);
-    },
-  },
-  sacks: {
-    size: [1, 1],
-    place: "corner",
-    draw(ctx, x, y) {
-      box(ctx, "#e6dcc4", x + 1, y + 5, 7, 10);
-      box(ctx, "#d9cdb0", x + 8, y + 3, 7, 12);
-      rect(ctx, "#a89a7a", x + 10, y + 3, 3, 1);
-    },
-  },
-  plant: {
-    size: [1, 1],
-    place: "corner",
-    draw(ctx, x, y) {
-      box(ctx, "#a8573e", x + 4, y + 9, 8, 6);
-      rect(ctx, "#3f8f4a", x + 3, y + 1, 10, 8);
-      rect(ctx, "#6fc070", x + 5, y + 2, 3, 3);
-      rect(ctx, "#ff8fb8", x + 9, y + 3, 2, 2);
-    },
-  },
-  chest: {
-    size: [1, 1],
-    place: "corner",
-    draw(ctx, x, y) {
-      box(ctx, "#9a6240", x + 1, y + 5, 14, 10);
-      rect(ctx, "#7d5232", x + 1, y + 5, 14, 3);
-      rect(ctx, "#e2b73c", x + 7, y + 8, 2, 3);
-    },
-  },
-  cauldron: {
-    size: [1, 1],
-    place: "floor",
-    draw(ctx, x, y) {
-      box(ctx, "#2b2930", x + 2, y + 4, 12, 10);
-      rect(ctx, "#4cb06a", x + 3, y + 4, 10, 3);
-      rect(ctx, "#8ce08a", x + 5, y + 4, 2, 1);
-      rect(ctx, "#ff8a3a", x + 5, y + 14, 6, 2);
-    },
-  },
-  herbs: {
-    size: [2, 1],
-    place: "wall",
-    draw(ctx, x, y) {
-      rect(ctx, "#6e4430", x + 2, y - 18, 28, 2);
-      for (let i = 0; i < 5; i++) {
-        rect(ctx, "#c9b98a", x + 5 + i * 5, y - 16, 1, 3);
-        rect(ctx, i % 2 ? "#3f8f4a" : "#6a9a3a", x + 3 + i * 5, y - 13, 5, 7);
-      }
-      box(ctx, "#9a6240", x + 3, y + 2, 26, 10);
-      rect(ctx, "#4cb06a", x + 6, y - 1, 3, 3);
-      rect(ctx, "#c4475d", x + 22, y - 1, 3, 3);
-    },
-  },
-  oven: {
-    size: [2, 1],
-    place: "wall",
-    draw(ctx, x, y) {
-      box(ctx, "#a85c48", x + 2, y - 16, 28, 28);
-      for (let row = 0; row < 5; row++) {
-        for (let column = 0; column < 4; column++) {
-          rect(
-            ctx,
-            "#8a4a3a",
-            x + 2 + column * 7 + (row % 2 ? 3 : 0),
-            y - 16 + row * 6 + 5,
-            6,
-            1,
-          );
-        }
-      }
-      box(ctx, "#2b1a14", x + 9, y - 4, 14, 10);
-      rect(ctx, "#ff8a3a", x + 10, y + 1, 12, 4);
-      rect(ctx, "#e3a24c", x + 12, y - 2, 8, 3);
-    },
-  },
-  desk: {
-    size: [2, 1],
-    place: "wall",
-    draw(ctx, x, y) {
-      rect(ctx, "#6e4430", x + 4, y + 6, 3, 8);
-      rect(ctx, "#6e4430", x + 25, y + 6, 3, 8);
-      box(ctx, "#9a6240", x + 2, y - 1, 28, 8);
-      box(ctx, "#f4ede0", x + 7, y - 4, 10, 4);
-      rect(ctx, "#3d3a40", x + 9, y - 3, 6, 1);
-      rect(ctx, "#f4ede0", x + 22, y - 6, 2, 5);
-      rect(ctx, "#ffd84a", x + 22, y - 8, 2, 2);
-    },
-  },
-  rug: {
-    size: [3, 2],
-    place: "floor",
-    walkable: true,
-    draw(ctx, x, y, random) {
-      const color = random.pick(FABRICS);
-      rect(ctx, shade(color, -0.3), x + 2, y + 4, 44, 24);
-      rect(ctx, color, x + 4, y + 6, 40, 20);
-      rect(ctx, shade(color, 0.3), x + 8, y + 10, 32, 1);
-      rect(ctx, shade(color, 0.3), x + 8, y + 21, 32, 1);
-      for (let px = x + 4; px < x + 44; px += 3)
-        rect(ctx, "#f4ede0", px, y + 3, 1, 1);
-    },
-  },
-};
-
-// Small things on the floor (they don't block the way)
-const CLUTTER = {
-  basket(ctx, x, y) {
-    rect(ctx, OUTLINE, x + 3, y + 8, 10, 7);
-    rect(ctx, "#c99a5a", x + 4, y + 9, 8, 5);
-    rect(ctx, "#a87d40", x + 4, y + 11, 8, 1);
-    rect(ctx, "#e05a3a", x + 5, y + 7, 3, 2);
-    rect(ctx, "#7cbf5b", x + 8, y + 7, 3, 2);
-  },
-  bucket(ctx, x, y) {
-    rect(ctx, OUTLINE, x + 4, y + 7, 8, 8);
-    rect(ctx, "#8a8f96", x + 5, y + 8, 6, 6);
-    rect(ctx, "#4f7fb8", x + 5, y + 8, 6, 2);
-    rect(ctx, "#5b5f66", x + 4, y + 5, 8, 1);
-  },
-  books(ctx, x, y) {
-    for (const [dy, color] of [
-      [12, "#c4475d"],
-      [9, "#3f7fc4"],
-      [6, "#e8c45a"],
-    ]) {
-      rect(ctx, OUTLINE, x + 3, y + dy - 1, 10, 4);
-      rect(ctx, color, x + 4, y + dy, 8, 2);
-    }
-  },
-  broom(ctx, x, y) {
-    rect(ctx, "#9a6240", x + 7, y - 4, 1, 14);
-    rect(ctx, OUTLINE, x + 4, y + 9, 8, 6);
-    rect(ctx, "#d9b452", x + 5, y + 10, 6, 4);
-  },
-  pot(ctx, x, y) {
-    rect(ctx, OUTLINE, x + 4, y + 8, 9, 7);
-    rect(ctx, "#a8573e", x + 5, y + 9, 7, 5);
-    rect(ctx, "#c97a5a", x + 5, y + 9, 7, 1);
-  },
-  tools(ctx, x, y) {
-    rect(ctx, "#6e4430", x + 3, y + 12, 10, 2);
-    rect(ctx, "#8a8f96", x + 3, y + 10, 4, 3);
-    rect(ctx, "#6e4430", x + 9, y + 6, 1, 8);
-    rect(ctx, "#8a8f96", x + 8, y + 5, 3, 2);
-  },
-};
-
-const CLUTTER_FOR = {
-  smithy: ["tools", "bucket", "tools"],
-  bakery: ["basket", "broom", "basket"],
-  clinic: ["bucket", "books", "pot"],
-  school: ["books", "books", "basket"],
-  shop: ["basket", "pot", "basket"],
-  tavern: ["bucket", "broom", "basket"],
-  home: ["basket", "books", "broom", "pot"],
-};
-
-// Things hanging on the back wall
-const WALL_DECOR = {
-  painting(ctx, x, y, random) {
-    rect(ctx, OUTLINE, x, y + 6, 14, 12);
-    rect(ctx, "#c98a5a", x + 1, y + 7, 12, 10);
-    rect(ctx, "#9ccbe8", x + 2, y + 8, 10, 5);
-    rect(ctx, random.pick(["#4c9a52", "#6a9a3a"]), x + 2, y + 13, 10, 3);
-    rect(ctx, "#ffd84a", x + 9, y + 9, 2, 2);
-  },
-  clock(ctx, x, y) {
-    rect(ctx, OUTLINE, x + 3, y + 6, 9, 9);
-    rect(ctx, "#f4ede0", x + 4, y + 7, 7, 7);
-    rect(ctx, OUTLINE, x + 7, y + 8, 1, 3);
-    rect(ctx, OUTLINE, x + 7, y + 10, 3, 1);
-  },
-  plates(ctx, x, y) {
-    rect(ctx, "#6e4430", x, y + 15, 16, 2);
-    for (const px of [x + 1, x + 6, x + 11]) {
-      rect(ctx, OUTLINE, px, y + 9, 5, 6);
-      rect(ctx, "#e8e2d4", px + 1, y + 10, 3, 4);
-      rect(ctx, "#3f7fc4", px + 2, y + 11, 1, 2);
-    }
-  },
-  pans(ctx, x, y) {
-    rect(ctx, "#5a3626", x, y + 6, 16, 1);
-    for (const px of [x + 2, x + 9]) {
-      rect(ctx, "#3d3a40", px + 2, y + 7, 1, 3);
-      rect(ctx, OUTLINE, px, y + 10, 6, 6);
-      rect(ctx, "#5b5f66", px + 1, y + 11, 4, 4);
-    }
-  },
-  horseshoe(ctx, x, y) {
-    rect(ctx, "#8a8f96", x + 4, y + 8, 2, 7);
-    rect(ctx, "#8a8f96", x + 10, y + 8, 2, 7);
-    rect(ctx, "#8a8f96", x + 5, y + 7, 6, 2);
-  },
-  map(ctx, x, y) {
-    rect(ctx, OUTLINE, x, y + 6, 16, 11);
-    rect(ctx, "#e8d9b0", x + 1, y + 7, 14, 9);
-    rect(ctx, "#7cbf5b", x + 3, y + 9, 5, 4);
-    rect(ctx, "#6aa6c8", x + 9, y + 10, 4, 4);
-    rect(ctx, "#c4475d", x + 6, y + 12, 1, 1);
-  },
-};
-
-const WALL_DECOR_FOR = {
-  smithy: ["horseshoe", "pans", "horseshoe"],
-  bakery: ["pans", "plates", "clock"],
-  clinic: ["clock", "painting", "map"],
-  school: ["map", "clock", "painting"],
-  tavern: ["plates", "painting", "pans"],
-  shop: ["clock", "map", "plates"],
-  home: ["painting", "clock", "plates", "pans"],
-};
-
 /** Furniture of a room for a kind of building (when the model gives none). */
 export const ROOM_PRESETS = {
   home: [
@@ -806,17 +347,6 @@ export function drawRoom(ctx, spec, x, y) {
   }
 
   for (const { name, column, row } of sorted) {
-    const [w, h] = FURNITURE[name].size;
-    if (!FURNITURE[name].walkable) {
-      rect(
-        ctx,
-        "rgba(0, 0, 0, 0.16)",
-        x + column * T + 2,
-        y + (row + h) * T - 3,
-        w * T - 2,
-        4,
-      );
-    }
     FURNITURE[name].draw(ctx, x + column * T, y + row * T, random);
   }
 
@@ -837,92 +367,162 @@ function drawFloor(ctx, kind, random, x, y, width, height) {
   const base = FLOORS[kind] ?? FLOORS.wood;
 
   if (kind === "stone") {
-    rect(ctx, shade(base, -0.35), x, y, width, height);
+    // Flagstones of different sizes, with light on the top left
+    rect(ctx, shade(base, -0.45), x, y, width, height);
     for (let row = 0; row * 8 < height; row++) {
-      for (let px = x - (row % 2) * 5; px < x + width; px += 10) {
-        const w = random.int(7, 9);
-        rect(
-          ctx,
-          shade(base, random() * 0.2 - 0.1),
-          Math.max(x, px + 1),
-          y + row * 8 + 1,
-          Math.min(w, x + width - Math.max(x, px + 1)),
-          6,
-        );
+      let px = x - random.int(0, 6);
+      while (px < x + width) {
+        const w = random.int(8, 14);
+        const left = Math.max(x, px + 1);
+        const right = Math.min(x + width, px + w);
+        const top = y + row * 8 + 1;
+        if (right > left) {
+          const tone = random() * 0.18 - 0.09;
+          rect(ctx, shade(base, tone), left, top, right - left, 6);
+          rect(ctx, shade(base, tone + 0.14), left, top, right - left, 1);
+          rect(ctx, shade(base, tone + 0.08), left, top, 1, 6);
+          rect(ctx, shade(base, tone - 0.16), left, top + 5, right - left, 1);
+          if (random.chance(0.12))
+            rect(ctx, "#5f8a5a", left + 1, top + 4, 2, 1);
+          if (random.chance(0.15)) {
+            rect(ctx, shade(base, -0.3), left + 2, top + 2, 1, 2);
+            rect(ctx, shade(base, -0.3), left + 3, top + 3, 2, 1);
+          }
+        }
+        px += w;
       }
     }
-    return;
-  }
-
-  if (kind === "tiles") {
+  } else if (kind === "tiles") {
+    // Ceramic tiles with soft grout and a little shine
+    rect(ctx, shade(base, -0.12), x, y, width, height);
     for (let row = 0; row * 8 < height; row++) {
       for (let column = 0; column * 8 < width; column++) {
-        rect(
-          ctx,
-          (row + column) % 2 ? base : shade(base, -0.18),
-          x + column * 8,
-          y + row * 8,
-          8,
-          8,
-        );
+        const color = (row + column) % 2 ? base : shade(base, -0.07);
+        const tx = x + column * 8;
+        const ty = y + row * 8;
+        rect(ctx, color, tx, ty, 7, 7);
+        rect(ctx, shade(color, 0.1), tx, ty, 7, 1);
+        if (random.chance(0.06))
+          rect(ctx, shade(color, 0.2), tx + 2, ty + 2, 2, 1);
       }
     }
-    return;
+  } else {
+    // Wooden planks of different tones, with grain, nails and knots
+    for (let row = 0; row * 5 < height; row++) {
+      const py = y + row * 5;
+      let px = x - ((row * 11) % 28);
+      while (px < x + width) {
+        const length = random.int(20, 34);
+        const left = Math.max(x, px);
+        const right = Math.min(x + width, px + length);
+        const tone = random() * 0.12 - 0.06;
+        const plank = shade(base, tone);
+        rect(ctx, plank, left, py, right - left, 4);
+        rect(ctx, shade(base, tone + 0.1), left, py, right - left, 1);
+        for (let gx = left + 2; gx < right - 3; gx += random.int(5, 9)) {
+          rect(ctx, shade(base, tone - 0.12), gx, py + 2, random.int(2, 4), 1);
+        }
+        if (random.chance(0.15)) {
+          const kx = left + random.int(3, Math.max(4, right - left - 4));
+          rect(ctx, shade(base, -0.35), kx, py + 1, 2, 2);
+        }
+        if (px + length < x + width) {
+          rect(ctx, shade(base, -0.4), px + length - 1, py, 1, 4);
+          rect(ctx, "#d9c6a5", px + length - 3, py + 1, 1, 1);
+          rect(ctx, "#d9c6a5", px + length - 3, py + 3, 1, 1);
+        }
+        px += length;
+      }
+      rect(ctx, shade(base, -0.4), x, py + 4, width, 1);
+    }
   }
 
-  // Wooden planks
-  for (let row = 0; row * 5 < height; row++) {
-    const py = y + row * 5;
-    rect(ctx, row % 2 ? base : shade(base, -0.06), x, py, width, 5);
-    rect(ctx, shade(base, -0.35), x, py + 4, width, 1);
-    for (let px = x + ((row * 13) % 24); px < x + width; px += 24) {
-      rect(ctx, shade(base, -0.35), px, py, 1, 4);
-    }
-    if (random.chance(0.5))
-      rect(ctx, shade(base, 0.12), x + random.int(0, width - 6), py + 1, 5, 1);
-  }
+  // Darker corners near the walls
+  rect(ctx, "rgba(0, 0, 0, 0.12)", x, y, 3, height);
+  rect(ctx, "rgba(0, 0, 0, 0.12)", x + width - 3, y, 3, height);
 }
 
 function drawBackWall(ctx, kind, random, x, y, width) {
   const base = ROOM_WALLS[kind] ?? ROOM_WALLS.plaster;
   const height = 2 * T;
+  const wainscot = 10;
 
   rect(ctx, base, x, y, width, height);
 
   if (kind === "wood") {
     for (let px = x; px < x + width; px += 6) {
-      rect(ctx, shade(base, random() * 0.12 - 0.06), px, y, 5, height);
+      const tone = random() * 0.12 - 0.06;
+      rect(ctx, shade(base, tone), px, y, 5, height);
+      rect(ctx, shade(base, tone + 0.12), px, y, 1, height);
       rect(ctx, shade(base, -0.35), px + 5, y, 1, height);
+      if (random.chance(0.3))
+        rect(
+          ctx,
+          shade(base, -0.25),
+          px + 2,
+          y + random.int(4, height - 6),
+          2,
+          2,
+        );
     }
+    rect(ctx, shade(base, -0.4), x, y + 12, width, 2);
   } else if (kind === "stone") {
     for (let row = 0; row * 6 < height; row++) {
       for (let px = x - (row % 2) * 5; px < x + width; px += 10) {
+        const left = Math.max(x, px + 1);
+        const right = Math.min(x + width, px + 9);
+        if (right <= left) continue;
+        const tone = random() * 0.16 - 0.08;
+        rect(ctx, shade(base, tone), left, y + row * 6 + 1, right - left, 4);
         rect(
           ctx,
-          shade(base, random() * 0.16 - 0.08),
-          Math.max(x, px + 1),
+          shade(base, tone + 0.14),
+          left,
           y + row * 6 + 1,
-          8,
-          4,
+          right - left,
+          1,
+        );
+        rect(
+          ctx,
+          shade(base, tone - 0.14),
+          left,
+          y + row * 6 + 4,
+          right - left,
+          1,
         );
       }
     }
   } else {
-    for (let i = 0; i < width / 2; i++) {
+    // Plaster with texture, wooden posts and a panelled lower part
+    for (let i = 0; i < width; i++) {
       rect(
         ctx,
         shade(base, random.chance(0.5) ? -0.05 : 0.04),
         x + random.int(0, width - 1),
-        y + random.int(0, height - 1),
+        y + random.int(2, height - wainscot - 1),
       );
     }
+    for (let px = x + 40; px < x + width - 8; px += 48) {
+      rect(ctx, OUTLINE, px - 1, y, 6, height - wainscot);
+      rect(ctx, "#8a5a38", px, y, 4, height - wainscot);
+      rect(ctx, "#a8714a", px, y, 1, height - wainscot);
+    }
     rect(ctx, "#8a5a38", x, y + 3, width, 2);
+    rect(ctx, "#a8714a", x, y + 3, width, 1);
+    // Wainscot panels
+    rect(ctx, "#8a5a38", x, y + height - wainscot, width, wainscot);
+    for (let px = x + 2; px < x + width - 6; px += 12) {
+      rect(ctx, "#7a4e30", px, y + height - wainscot + 2, 10, wainscot - 5);
+      rect(ctx, "#a8714a", px, y + height - wainscot + 2, 10, 1);
+    }
+    rect(ctx, "#c98f5d", x, y + height - wainscot, width, 1);
   }
 
   rect(ctx, OUTLINE, x, y, width, 2);
-  rect(ctx, "#6e4430", x, y + height - 4, width, 4);
-  rect(ctx, "#9a6240", x, y + height - 4, width, 1);
-  rect(ctx, "rgba(0, 0, 0, 0.18)", x, y + height, width, 3);
+  rect(ctx, "#5a3626", x, y + height - 3, width, 3);
+  rect(ctx, "#8a5a38", x, y + height - 3, width, 1);
+  rect(ctx, "rgba(0, 0, 0, 0.22)", x, y + height, width, 3);
+  rect(ctx, "rgba(0, 0, 0, 0.1)", x, y + height + 3, width, 2);
 }
 
 /** Description of a room for a kind of building (trade). */
@@ -966,18 +566,37 @@ const LIGHT_PIECES = ["stove", "fireplace", "forge", "oven", "cauldron"];
  * villagers stay, counter, bed and lights). See levels/world.js.
  */
 export function buildRoom(spec) {
-  const { columns, rows } = spec;
   const canvas = document.createElement("canvas");
-  canvas.width = columns * T;
-  canvas.height = rows * T;
+  canvas.width = spec.columns * T;
+  canvas.height = spec.rows * T;
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = false;
-  const layout = drawRoom(ctx, spec, 0, 0);
+  drawRoom(ctx, spec, 0, 0);
+  return { canvas, map: roomMap(spec) };
+}
+
+/**
+ * The data of a room for the game, without drawing it (the same layout the
+ * drawing uses): collisions and points. Tested with node.
+ */
+export function roomMap(spec) {
+  const { columns, rows } = spec;
+  const layout = arrangeRoom(
+    columns,
+    rows,
+    spec.furniture,
+    seeded(spec.seed + 1),
+  );
 
   const collisions = layout.blocked.flat().map((blocked) => (blocked ? 1 : 0));
+  // Where the player (16 x 12) stands on the tiles (column, column + 1) of
+  // `row`, aligned with the 12 px collision cells of the world (interiors
+  // start on multiples of 12), so every cell under them is on those tiles
+  const cell = 12;
+  const aligned = (start) => Math.ceil((start - cell / 2) / cell) * cell;
   const stand = ([column, row]) => ({
-    x: column * T,
-    y: row * T + 2,
+    x: aligned(column * T),
+    y: aligned(row * T),
     width: 0,
     height: 0,
   });
@@ -1058,14 +677,11 @@ export function buildRoom(spec) {
     });
 
   return {
-    canvas,
-    map: {
-      width: columns,
-      height: rows,
-      tileWidth: T,
-      tileHeight: T,
-      collisions,
-      points,
-    },
+    width: columns,
+    height: rows,
+    tileWidth: T,
+    tileHeight: T,
+    collisions,
+    points,
   };
 }
