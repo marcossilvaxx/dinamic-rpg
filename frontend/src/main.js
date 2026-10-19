@@ -51,6 +51,7 @@ import { Regions } from "./world/Regions";
 import { Village } from "./world/Village";
 import { applyVillageLayout } from "./world/VillageLayout";
 import { createIsland, paintIsland } from "./world/island";
+import { roofContexts } from "./world/island/paint";
 import {
   islandSeed,
   startNewIsland,
@@ -76,6 +77,7 @@ const map1 = new Map({
   width: VILLAGE_WIDTH,
   height: VILLAGE_HEIGHT,
 });
+map1.roofs = islandImages.roofs;
 
 // One collision grid for the village and the interiors (see levels/world.js)
 const collision = new CollisionGrid(worldCollisionRows(), 12);
@@ -464,6 +466,7 @@ gameSocket.on(protocol.VILLAGE_LAYOUT, ({ data }) => {
   applyVillageLayout(data.lots, {
     background: islandImages.background.getContext("2d"),
     foreground: islandImages.foreground.getContext("2d"),
+    roofs: roofContexts(islandImages.roofs),
     collision,
     interiors,
     village,

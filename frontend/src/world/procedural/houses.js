@@ -718,11 +718,42 @@ export function houseFootprint(spec, at) {
 }
 
 /**
+ * Where the roof is (seen from the front), in white: snow covers it in the
+ * winter (see world/terrain.js). Same coordinates as drawHouse.
+ */
+export function drawRoofMask(ctx, spec, x, y) {
+  const { roofHeight: height } = houseSize(spec);
+  const { width } = spec;
+  ctx.fillStyle = "#ffffff";
+  if (spec.roofStyle !== "gable") {
+    ctx.fillRect(x - 4, y + 1, width + 8, height);
+    return;
+  }
+  const center = x + width / 2;
+  const half = width / 2 + 5;
+  const bottom = y + height + 2;
+  const inset = 7;
+  for (let py = y; py < bottom - 1; py++) {
+    const span = Math.round(((py - y) / (bottom - y)) * half);
+    const inner = Math.round(
+      Math.max(0, ((py - y - inset) / (bottom - y - inset)) * (half - inset)),
+    );
+    if (inner <= 0) {
+      ctx.fillRect(Math.round(center - span), py, Math.max(1, span * 2), 1);
+      continue;
+    }
+    ctx.fillRect(Math.round(center - span), py, span - inner, 1);
+    ctx.fillRect(Math.round(center + inner), py, span - inner, 1);
+  }
+}
+
+/**
  * A house for the map at `at` (left of the walls and the ground): its door,
  * windows, chimney, the whole drawing (area), the blocked rectangle (walls
  * and the lower part of the roof) and `paint(background, foreground)`, which
  * puts the part of the roof over the characters on the foreground (they
- * walk behind it) and the rest on the background.
+ * walk behind it) and the rest on the background. `roofs` (optional,
+ * { background, foreground }) gets the same split of the roof mask.
  */
 export function buildHouse(spec, at) {
   const { height, roofHeight } = houseSize(spec);
@@ -732,15 +763,19 @@ export function buildHouse(spec, at) {
   canvas.height = height + margin * 2;
   const ctx = canvas.getContext("2d");
   const drawn = drawHouse(ctx, spec, margin, margin);
+  const mask = document.createElement("canvas");
+  mask.width = canvas.width;
+  mask.height = canvas.height;
+  drawRoofMask(mask.getContext("2d"), spec, margin, margin);
 
   const left = at.x - margin;
   const top = at.ground - height - margin;
   // The upper part of the roof covers who walks behind the house
   const split = margin + Math.round(roofHeight * 0.55);
   const lower = canvas.height - split;
-  const paint = (background, foreground) => {
+  const drawSplit = (image, background, foreground) => {
     background.drawImage(
-      canvas,
+      image,
       0,
       split,
       canvas.width,
@@ -751,7 +786,7 @@ export function buildHouse(spec, at) {
       lower,
     );
     foreground.drawImage(
-      canvas,
+      image,
       0,
       0,
       canvas.width,
@@ -761,6 +796,11 @@ export function buildHouse(spec, at) {
       canvas.width,
       split,
     );
+  };
+
+  const paint = (background, foreground, roofs) => {
+    drawSplit(canvas, background, foreground);
+    if (roofs) drawSplit(mask, roofs.background, roofs.foreground);
   };
 
   const offset = (point) => point && { x: point.x + left, y: point.y + top };

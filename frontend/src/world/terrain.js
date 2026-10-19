@@ -67,6 +67,12 @@ const classify = (data) => {
   return classes;
 };
 
+const markRoofs = (classes, mask) => {
+  for (let i = 0; i < classes.length; i++) {
+    if (mask[i * 4 + 3] > 0) classes[i] = ROOF_PIXEL;
+  }
+};
+
 /** A canvas painted pixel by pixel with `paint(x, y, index)` -> [r,g,b,a]. */
 const paintLayer = (width, height, paint) => {
   const canvas = document.createElement("canvas");
@@ -130,10 +136,21 @@ const distanceToLand = (classes, width, height, max) => {
  * @param {HTMLImageElement} mapImage
  * @param {HTMLImageElement} foregroundImage
  */
-export function analyzeTerrain(mapImage, foregroundImage, width, height) {
+export function analyzeTerrain(
+  mapImage,
+  foregroundImage,
+  width,
+  height,
+  roofs = null,
+) {
   const classes = classify(readPixels(mapImage, width, height));
   const foreground = readPixels(foregroundImage, width, height);
   const foregroundClasses = classify(foreground);
+  // Roofs drawn with code have their own colors: a mask says where they are
+  if (roofs) {
+    markRoofs(classes, readPixels(roofs.background, width, height));
+    markRoofs(foregroundClasses, readPixels(roofs.foreground, width, height));
+  }
   const random = seededRandom(7);
   const at = (x, y) =>
     x < 0 || y < 0 || x >= width || y >= height

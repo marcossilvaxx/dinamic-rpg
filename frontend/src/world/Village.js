@@ -210,7 +210,7 @@ export class Village {
   }
 
   loadTerrain() {
-    const { resource, foregroundResource, width, height } = this.map;
+    const { resource, foregroundResource, width, height, roofs } = this.map;
 
     if (this.terrain || !resource.isLoaded || !foregroundResource.isLoaded) {
       return;
@@ -221,6 +221,7 @@ export class Village {
       foregroundResource.image,
       width,
       height,
+      roofs,
     );
   }
 

@@ -419,12 +419,23 @@ export function paintTree(
 }
 
 /**
- * @returns {{background: HTMLCanvasElement, foreground: HTMLCanvasElement}}
+ * @returns {{background: HTMLCanvasElement, foreground: HTMLCanvasElement,
+ *   roofs: {background: HTMLCanvasElement, foreground: HTMLCanvasElement}}}
+ * `roofs` marks where the roofs are (snow covers them, see terrain.js).
  */
 export function paintIsland(layout) {
   const background = document.createElement("canvas");
   const foreground = document.createElement("canvas");
-  for (const canvas of [background, foreground]) {
+  const roofs = {
+    background: document.createElement("canvas"),
+    foreground: document.createElement("canvas"),
+  };
+  for (const canvas of [
+    background,
+    foreground,
+    roofs.background,
+    roofs.foreground,
+  ]) {
     canvas.width = WIDTH;
     canvas.height = HEIGHT;
   }
@@ -446,7 +457,7 @@ export function paintIsland(layout) {
   // The buildings that always exist, and their interiors
   for (const building of layout.buildings.filter((b) => !b.lot)) {
     const house = buildHouse(building.spec, building.at);
-    house.paint(bg, fg);
+    house.paint(bg, fg, roofContexts(roofs));
     const entry = BUILDINGS.find((b) => b.placeId === building.id);
     if (entry)
       Object.assign(entry, { windows: house.windows, chimney: house.chimney });
@@ -460,5 +471,11 @@ export function paintIsland(layout) {
     addInterior({ id: building.id, name: placeName }, room);
   }
 
-  return { background, foreground };
+  return { background, foreground, roofs };
 }
+
+/** The 2D contexts of the roof masks (to paint more houses later). */
+export const roofContexts = (roofs) => ({
+  background: roofs.background.getContext("2d"),
+  foreground: roofs.foreground.getContext("2d"),
+});

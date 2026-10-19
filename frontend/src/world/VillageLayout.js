@@ -39,13 +39,15 @@ function blockRect(collision, { x, y, width, height }) {
  * @param {object} game
  * @param {CanvasRenderingContext2D} game.background Of the village.
  * @param {CanvasRenderingContext2D} game.foreground
+ * @param {{background: CanvasRenderingContext2D, foreground: CanvasRenderingContext2D}} game.roofs
+ *   Masks of the roofs (snow)
  * @param {import("../utils/collisionGrid").CollisionGrid} game.collision
  * @param {import("./Interiors").Interiors} game.interiors
  * @param {import("./Village").Village} game.village
  */
 export function applyVillageLayout(
   built,
-  { background, foreground, collision, interiors, village },
+  { background, foreground, roofs, collision, interiors, village },
 ) {
   const houses = [];
 
@@ -100,7 +102,7 @@ export function applyVillageLayout(
 
   pathfinder.update(collision);
 
-  houses.forEach((house) => house.paint(background, foreground));
+  houses.forEach((house) => house.paint(background, foreground, roofs));
   // Snow, autumn and footprints know the new houses
   village.terrain = null;
 }
