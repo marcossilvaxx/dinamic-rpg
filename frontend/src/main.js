@@ -53,6 +53,7 @@ import { applyVillageLayout } from "./world/VillageLayout";
 import { createIsland, paintIsland } from "./world/island";
 import { roofContexts } from "./world/island/paint";
 import { occupationLabel } from "./utils/occupation";
+import { surroundingsAt } from "./audio/surroundings";
 import {
   adoptIslandSeed,
   islandSeed,
@@ -616,9 +617,21 @@ const update = (delta) => {
   regions.step(delta);
   village.step(delta);
   weatherEffects.step(delta);
+  const around = surroundingsAt(
+    { x: hero.position.x + 8, y: hero.position.y + 10 },
+    {
+      island,
+      region: regions.current,
+      interior: interiors.current,
+      snow: village.ground.snow,
+    },
+  );
+  sound.ground = around.ground;
   sound.updateAmbience(delta, {
     hour: gameClock.hour,
     weather: worldState.weather,
+    place: around.place,
+    nearSea: around.nearSea,
   });
   minimap.update(delta, chatContainer.isOpen || journal.isOpen);
   placeBanner.update(hero.position);
@@ -685,6 +698,7 @@ if (import.meta.env.DEV) {
     interiors,
     regions,
     island,
+    sound,
     places: PLACES_BY_ID,
   };
 }

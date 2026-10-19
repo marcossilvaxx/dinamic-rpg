@@ -11,6 +11,45 @@ const FOOTSTEP_INTERVAL_MS = 260;
 
 const randomBetween = (min, max) => min + Math.random() * (max - min);
 
+// Footsteps on each ground: filtered noise (and a knock on wood and stone)
+const FOOTSTEPS = {
+  grass: { duration: 0.06, volume: 0.05, frequency: [500, 800] },
+  sand: {
+    duration: 0.08,
+    volume: 0.035,
+    frequency: [1500, 2200],
+    filter: "bandpass",
+  },
+  dirt: { duration: 0.07, volume: 0.05, frequency: [700, 1000] },
+  snow: {
+    duration: 0.12,
+    volume: 0.04,
+    frequency: [2500, 3500],
+    filter: "highpass",
+  },
+  stone: {
+    duration: 0.03,
+    volume: 0.05,
+    frequency: [2000, 3000],
+    filter: "highpass",
+    knock: [500, 700],
+  },
+  wood: {
+    duration: 0.04,
+    volume: 0.05,
+    frequency: [900, 1200],
+    knock: [170, 230],
+  },
+  cave: {
+    duration: 0.04,
+    volume: 0.05,
+    frequency: [1600, 2400],
+    filter: "highpass",
+    knock: [300, 420],
+    echo: true,
+  },
+};
+
 const readMuted = () => {
   try {
     return localStorage.getItem(STORAGE_KEY) === "true";
@@ -29,6 +68,11 @@ class Sound {
     this.lastFootstep = 0;
     this.timeToBird = 2000;
     this.timeToCricket = 1000;
+    this.timeToWave = 1500;
+    this.timeToDrip = 2000;
+    this.timeToOwl = 8000;
+    // Ground under the player (see audio/surroundings.js)
+    this.ground = "grass";
   }
 
   get isReady() {
@@ -169,17 +213,37 @@ class Sound {
     source.start();
   }
 
+  /** A step on the ground the player is on (`this.ground`). */
   footstep() {
     const now = performance.now();
 
     if (now - this.lastFootstep < FOOTSTEP_INTERVAL_MS) return;
 
     this.lastFootstep = now;
+    const step = FOOTSTEPS[this.ground] ?? FOOTSTEPS.grass;
     this.noise({
-      duration: 0.06,
-      volume: 0.05,
-      frequency: randomBetween(500, 800),
+      duration: step.duration,
+      volume: step.volume,
+      frequency: randomBetween(...step.frequency),
+      filter: step.filter ?? "lowpass",
     });
+    if (step.knock) {
+      this.tone({
+        frequency: randomBetween(...step.knock),
+        duration: 0.05,
+        type: "triangle",
+        volume: 0.025,
+      });
+    }
+    if (step.echo) {
+      this.noise({
+        duration: step.duration,
+        volume: step.volume * 0.35,
+        frequency: randomBetween(...step.frequency),
+        filter: step.filter ?? "lowpass",
+        delay: 0.11,
+      });
+    }
   }
 
   /**
@@ -372,18 +436,24 @@ class Sound {
   }
 
   /**
-   * Ambience: birds during the day, crickets at night and rain.
+   * Ambience of the place: birds during the day (more in the forest),
+   * crickets and owls at night, waves near the sea, drops of water in the
+   * mine and the rain (muffled indoors, none in the mine).
    * @param {number} delta ms since the last frame.
    * @param {object} state
    * @param {number} state.hour
    * @param {string} state.weather
+   * @param {string} [state.place] village, interior, forest, mine or town.
+   * @param {boolean} [state.nearSea]
    */
-  updateAmbience(delta, { hour, weather }) {
+  updateAmbience(delta, { hour, weather, place = "village", nearSea = false }) {
     if (!this.context) return;
 
     const raining = weather === "rain" || weather === "storm";
+    const outside = place !== "interior" && place !== "mine";
+    const rain = weather === "storm" ? 0.35 : raining ? 0.2 : 0;
     this.rainGain.gain.setTargetAtTime(
-      weather === "storm" ? 0.35 : raining ? 0.2 : 0,
+      place === "mine" ? 0 : place === "interior" ? rain * 0.35 : rain,
       this.context.currentTime,
       1.5,
     );
@@ -391,9 +461,15 @@ class Sound {
     const isNight = hour >= 20 || hour < 5;
     this.timeToBird -= delta;
     this.timeToCricket -= delta;
+    this.timeToWave -= delta;
+    this.timeToDrip -= delta;
+    this.timeToOwl -= delta;
 
-    if (!isNight && !raining && this.timeToBird <= 0) {
-      this.timeToBird = randomBetween(1500, 6000);
+    if (outside && !isNight && !raining && this.timeToBird <= 0) {
+      this.timeToBird =
+        place === "forest"
+          ? randomBetween(700, 2500)
+          : randomBetween(1500, 6000);
       const frequency = randomBetween(2200, 3200);
       const notes = Math.floor(randomBetween(1, 4));
       for (let i = 0; i < notes; i++) {
@@ -407,14 +483,65 @@ class Sound {
       }
     }
 
-    if (isNight && weather !== "storm" && this.timeToCricket <= 0) {
+    if (
+      place !== "mine" &&
+      isNight &&
+      weather !== "storm" &&
+      this.timeToCricket <= 0
+    ) {
       this.timeToCricket = randomBetween(500, 1500);
       for (let i = 0; i < 3; i++) {
         this.tone({
           frequency: 4300,
           duration: 0.03,
-          volume: 0.008,
+          volume: place === "interior" ? 0.003 : 0.008,
           delay: i * 0.045,
+        });
+      }
+    }
+
+    // An owl in the forest at night
+    if (place === "forest" && isNight && this.timeToOwl <= 0) {
+      this.timeToOwl = randomBetween(9000, 20000);
+      for (const [i, frequency] of [420, 380, 380].entries()) {
+        this.tone({
+          frequency,
+          slideTo: frequency * 0.85,
+          duration: i === 0 ? 0.25 : 0.35,
+          volume: 0.03,
+          delay: i * 0.45,
+        });
+      }
+    }
+
+    // Waves breaking on the coast
+    if (outside && nearSea && this.timeToWave <= 0) {
+      this.timeToWave = randomBetween(2800, 5500);
+      this.noise({
+        duration: 1.8,
+        volume: weather === "storm" ? 0.09 : 0.045,
+        frequency: 450,
+      });
+      this.noise({
+        duration: 1.1,
+        volume: 0.02,
+        frequency: 2400,
+        filter: "bandpass",
+        delay: 0.35,
+      });
+    }
+
+    // Drops of water in the cave, with an echo
+    if (place === "mine" && this.timeToDrip <= 0) {
+      this.timeToDrip = randomBetween(1200, 4200);
+      const frequency = randomBetween(1400, 2200);
+      for (const [i, volume] of [0.035, 0.012].entries()) {
+        this.tone({
+          frequency,
+          slideTo: frequency * 0.55,
+          duration: 0.08,
+          volume,
+          delay: i * 0.18,
         });
       }
     }

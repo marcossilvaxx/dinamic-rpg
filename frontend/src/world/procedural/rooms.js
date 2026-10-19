@@ -683,5 +683,6 @@ export function roomMap(spec) {
     tileHeight: T,
     collisions,
     points,
+    floor: spec.floor,
   };
 }
