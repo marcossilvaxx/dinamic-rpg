@@ -1,6 +1,8 @@
 import { sound } from "../audio/sound";
 import { GameObject } from "../GameObject";
 import { DOWN } from "../Input";
+import { NauticalChart } from "../hud/NauticalChart";
+import { notifications } from "../hud/Notifications";
 import { placeBanner } from "../hud/PlaceBanner";
 import { VILLAGE_BOAT } from "../levels/decor";
 import { PLACES_BY_ID } from "../levels/places";
@@ -9,7 +11,9 @@ import {
   REGIONS_BY_ID,
   VILLAGE_HEIGHT,
   VILLAGE_WIDTH,
+  applyRegions,
   interiorPoint,
+  rasterizeArea,
 } from "../levels/world";
 import * as protocol from "../net/protocol";
 import { gameSocket } from "../net/socket";
@@ -27,6 +31,8 @@ import { Lighting } from "./Lighting";
 import { lampsLit } from "./rules";
 import { paintTree } from "./island/paint";
 import { paintRegion } from "./island/paintRegions";
+import { generateRegion } from "./island/regions";
+import { pathfinder } from "../utils/pathfinding";
 import { seeded } from "./procedural/pixel";
 import * as sprites from "./sprites";
 
@@ -139,7 +145,7 @@ class Merchant extends GameObject {
  * change (felled trees become stumps until they grow back).
  */
 export class Regions {
-  constructor({ scene, hero, npcs, camera, menu, screen }) {
+  constructor({ scene, hero, npcs, camera, menu, screen, collision, island }) {
     this.scene = scene;
     this.hero = hero;
     this.npcs = npcs;
@@ -149,6 +155,13 @@ export class Regions {
     this.lighting = new Lighting(screen);
     this.time = 0;
     this.outsideAlpha = 0;
+    this.collision = collision;
+    this.fireKey = null; // Fire of the forest drawn
+    this.island = island;
+    this.chart = new NauticalChart({ input: menu.input });
+    // Levels of each region drawn (they grow, see backend game/Regions.js)
+    this.levels = { forest: 0, mine: 0, town: 0 };
+    this.props = new Map(); // region id -> its props
 
     // The maps are generated with the island (see world/island/regions.js)
     this.rooms = REGIONS.map((region) => {
@@ -161,10 +174,11 @@ export class Regions {
         position: new Vector2(region.origin.x, region.origin.y),
       });
       scene.addChild(map);
-      return { region, map };
+      return { region, map, background, foreground };
     });
 
-    this.addProps();
+    REGIONS.forEach((region) => this.addProps(region));
+    this.addVillageBoat();
 
     this.travelScreen = document.createElement("div");
     this.travelScreen.className = "knockout-screen";
@@ -172,6 +186,9 @@ export class Regions {
 
     gameSocket.on(protocol.INTERACT_RESULT, ({ data }) => {
       if (data.travel) this.arrive(data.travel);
+      // The tide or a fire: the boat doesn't leave (the message is shown
+      // with the other results, see Village.showResult)
+      if (data.travelBlocked) this.travelScreen.classList.remove("visible");
     });
   }
 
@@ -190,17 +207,25 @@ export class Regions {
     return (this.state.depleted ?? []).includes(`${region.id}:${name}`);
   }
 
-  addProps() {
-    const add = (x, y, draw) => this.scene.addChild(new RegionProp(x, y, draw));
+  addProps(region) {
+    const props = [];
+    const add = (x, y, draw) => {
+      const prop = new RegionProp(x, y, draw);
+      props.push(prop);
+      this.scene.addChild(prop);
+    };
+    this.props.set(region.id, props);
 
-    for (const region of REGIONS) {
+    {
       // Trees to cut, rocks to mine, crystals and bushes: they change when
       // used up (and come back when they grow again)
       for (const tree of this.points(region, "tree")) {
         const image = treeImage(region.layout.seed + tree.x * 7 + tree.y);
         add(tree.x, tree.y, (ctx, x, y) =>
           this.isDepleted(region, tree.name)
-            ? sprites.stump(ctx, x, y)
+            ? this.burnedTrees(region).includes(tree.name)
+              ? sprites.burntStump(ctx, x, y)
+              : sprites.stump(ctx, x, y)
             : ctx.drawImage(image, x - TREE_ANCHOR.x, y - TREE_ANCHOR.y),
         );
       }
@@ -250,22 +275,100 @@ export class Regions {
           sprites.campfire(ctx, x, y, this.time, this.camp.guarded),
         );
       }
+      for (const chest of this.points(region, "islet_chest")) {
+        add(chest.x, chest.y - 8, (ctx, x, y) =>
+          sprites.chest(ctx, x, y, this.isletChestOpen(region)),
+        );
+      }
       for (const stall of this.points(region, "stall")) {
         add(stall.x, stall.y, (ctx, x, y) =>
           sprites.stall(ctx, x, y, stall.name.length),
         );
       }
       for (const merchant of this.points(region, "merchant")) {
-        this.scene.addChild(
-          new Merchant(merchant.x, merchant.y, MERCHANTS[merchant.name]),
+        const person = new Merchant(
+          merchant.x,
+          merchant.y,
+          MERCHANTS[merchant.name],
         );
+        props.push(person);
+        this.scene.addChild(person);
       }
     }
+  }
 
-    // The boat at the pier of the village
-    add(VILLAGE_BOAT.x - 22, VILLAGE_BOAT.y + 26, (ctx, x, y) =>
-      sprites.boat(ctx, x, y, this.time),
+  /** The boat at the pier of the village. */
+  addVillageBoat() {
+    this.scene.addChild(
+      new RegionProp(VILLAGE_BOAT.x - 22, VILLAGE_BOAT.y + 26, (ctx, x, y) =>
+        sprites.boat(ctx, x, y, this.time),
+      ),
     );
+  }
+
+  /**
+   * Draws a region again on its canvases (after it changed, or burned:
+   * near the trees `burned` the trunks, crowns and ground turn dark).
+   */
+  repaint(region, burned = this.burnedTrees(region)) {
+    const room = this.rooms.find((entry) => entry.region === region);
+    const images = paintRegion(region.layout);
+    const ash = burned
+      .map((name) => region.layout.points[name])
+      .filter(Boolean);
+    for (const key of ["background", "foreground"]) {
+      const ctx = room[key].getContext("2d");
+      ctx.clearRect(0, 0, room[key].width, room[key].height);
+      ctx.drawImage(images[key], 0, 0);
+      if (!ash.length) continue;
+      ctx.save();
+      ctx.globalCompositeOperation = "source-atop";
+      for (const { x, y } of ash) {
+        const gradient = ctx.createRadialGradient(x, y - 10, 4, x, y - 10, 70);
+        gradient.addColorStop(0, "rgba(28, 20, 18, 0.85)");
+        gradient.addColorStop(0.6, "rgba(40, 30, 26, 0.55)");
+        gradient.addColorStop(1, "rgba(40, 30, 26, 0)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x - 70, y - 80, 140, 140);
+      }
+      ctx.restore();
+    }
+  }
+
+  /** Names of the trees of `region` that burned. */
+  burnedTrees(region) {
+    if (region.id !== "forest") return [];
+    return (this.fire?.trees ?? []).map((index) => `tree_${index}`);
+  }
+
+  /** The fire of the forest (see backend game/MapEvents.js), or null. */
+  get fire() {
+    return this.events.fire ?? null;
+  }
+
+  get events() {
+    return worldState.state.events ?? {};
+  }
+
+  /**
+   * A region changed (the forest grew, a gallery was opened in the mine,
+   * the town built something): it is generated and drawn again, with its
+   * collisions and props.
+   */
+  rebuild(region, level) {
+    const layout = generateRegion(region.id, region.layout.seed, level);
+    applyRegions({ [region.id]: layout });
+
+    this.repaint(region);
+
+    if (this.collision) {
+      rasterizeArea(this.collision.rows, region);
+      pathfinder.update(this.collision);
+    }
+
+    this.props.get(region.id).forEach((prop) => prop.destroy());
+    this.addProps(region);
+    this.levels[region.id] = level;
   }
 
   get state() {
@@ -286,24 +389,71 @@ export class Regions {
 
   /** At the pier of the village: where to go. */
   openTravelMenu() {
+    if (this.events.tide) {
+      notifications.push(
+        "A maré está alta e cobriu o píer: o barco só sai quando ela baixar.",
+      );
+      return;
+    }
+    const discovered = this.discovered;
+    const unknown = REGIONS.filter(
+      (region) => region.islet && !discovered.includes(region.id),
+    );
     this.menu.open("Viajar de barco (meia hora)", [
-      ...REGIONS.map((region) => ({
+      ...REGIONS.filter(
+        (region) => !region.islet || discovered.includes(region.id),
+      ).map((region) => ({
         label: region.name,
-        detail: {
-          forest: "madeira, cogumelos e o acampamento dos bandidos",
-          mine: "minério e cristais (precisa de picareta)",
-          town: "ferramentas, sementes e compradores",
-        }[region.id],
+        detail:
+          {
+            forest: "madeira, cogumelos e o acampamento dos bandidos",
+            mine: "minério e cristais (precisa de picareta)",
+            town: "ferramentas, sementes e compradores",
+          }[region.id] ?? "ilha que você descobriu",
         run: () => this.travel(region.id),
       })),
+      ...(unknown.length
+        ? [
+            {
+              label: "Explorar o mar aberto",
+              detail: `uma hora; ainda há ${unknown.length} ${unknown.length === 1 ? "ilha" : "ilhas"} por achar`,
+              run: () => this.travel("explore"),
+            },
+          ]
+        : []),
+      {
+        label: "Ver o mapa náutico",
+        detail: "o que você já conhece do mar",
+        run: () => this.openChart(),
+      },
     ]);
+  }
+
+  isletChestOpen(region) {
+    return (this.state.isletChests ?? []).includes(region.id);
+  }
+
+  /** Islets found at sea (see backend game/Regions.js). */
+  get discovered() {
+    return this.state.discovered ?? [];
+  }
+
+  openChart() {
+    this.chart.open({
+      island: this.island,
+      regions: REGIONS,
+      discovered: this.discovered,
+      here: this.current?.id ?? "village",
+    });
   }
 
   travel(destination) {
     this.travelScreen.textContent =
       destination === "village"
         ? "Voltando para a vila..."
-        : "Viajando de barco...";
+        : destination === "explore"
+          ? "Navegando pelo mar aberto..."
+          : "Viajando de barco...";
     this.travelScreen.classList.add("visible");
     sound.splash();
     gameSocket.send(protocol.INTERACT, {
@@ -372,6 +522,19 @@ export class Regions {
 
   step(delta) {
     this.time += delta;
+
+    // The forest burned (or grew back after the fire)
+    const fire = this.fire;
+    const key = fire ? `${fire.id}` : null;
+    if (key !== this.fireKey) {
+      this.fireKey = key;
+      this.repaint(REGIONS_BY_ID.forest);
+    }
+    const levels = this.state.levels ?? {};
+    for (const region of REGIONS) {
+      const level = levels[region.id] ?? 0;
+      if (level !== this.levels[region.id]) this.rebuild(region, level);
+    }
     if (this.current?.id === "forest") this.syncCampBandits();
   }
 
@@ -457,6 +620,15 @@ export class Regions {
         return { label: "Abrir o baú dos bandidos", run: server("camp_chest") };
       }
 
+      if (point.kind === "islet_chest") {
+        return {
+          label: this.isletChestOpen(region)
+            ? "Baú (vazio)"
+            : "Abrir o baú meio enterrado",
+          run: server("islet_chest"),
+        };
+      }
+
       if (point.kind === "merchant") {
         return {
           label: `Negociar com ${MERCHANTS[point.name].name}`,
@@ -497,6 +669,45 @@ export class Regions {
   drawForeground(ctx) {
     for (const { map, region } of this.rooms) {
       map.foreground.draw(ctx, region.origin.x, region.origin.y);
+    }
+    if (this.current?.id === "forest" && this.fire?.burning) {
+      this.drawFire(ctx, this.current);
+    }
+  }
+
+  /** Flames and smoke over the trees that burn. */
+  drawFire(ctx, region) {
+    for (const index of this.fire.trees) {
+      const point = interiorPoint(region, `tree_${index}`);
+      if (!point) continue;
+      for (const [dx, dy, size] of [
+        [0, -20, 1.2],
+        [-22, -8, 0.9],
+        [20, -12, 1],
+        [-8, -34, 0.8],
+        [14, -30, 0.7],
+      ]) {
+        sprites.flames(
+          ctx,
+          point.x + dx,
+          point.y + dy,
+          this.time + dx * 37,
+          size,
+        );
+      }
+      for (let i = 0; i < 6; i++) {
+        const life = (this.time / 2200 + i / 6) % 1;
+        ctx.fillStyle = `rgba(60, 56, 58, ${0.45 * (1 - life)})`;
+        ctx.beginPath();
+        ctx.arc(
+          point.x + Math.sin(i * 2.1 + this.time / 700) * 8,
+          point.y - 40 - life * 50,
+          5 + life * 14,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
     }
   }
 

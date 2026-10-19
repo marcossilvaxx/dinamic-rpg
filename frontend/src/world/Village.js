@@ -24,6 +24,7 @@ import { pathfinder } from "../utils/pathfinding";
 import { Ambient } from "./Ambient";
 import { GroundLayer } from "./GroundLayer";
 import { Lighting } from "./Lighting";
+import { MapEvents } from "./MapEvents";
 import { Props } from "./Props";
 import {
   campfireLit,
@@ -67,6 +68,7 @@ export class Village {
    * @param {import("./Interiors").Interiors} options.interiors
    * @param {import("./Regions").Regions} options.regions
    * @param {{width: number, height: number}} options.screen
+   * @param {object} [options.island] Layout of the generated island.
    */
   constructor({
     scene,
@@ -77,6 +79,7 @@ export class Village {
     interiors,
     regions,
     screen,
+    island,
   }) {
     this.map = map;
     this.interiors = interiors;
@@ -101,6 +104,8 @@ export class Village {
     map.addChild(new GroundLayer(this));
     this.props = new Props({ scene, village: this });
     this.ambient = new Ambient({ scene, village: this });
+    // Fallen trees, high tide, smoke of the forest fire (see MapEvents.js)
+    this.events = island ? new MapEvents({ scene, island, hero, npcs }) : null;
     this.lighting = new Lighting(screen);
 
     gameSocket.on(protocol.INTERACT_RESULT, ({ data }) =>
@@ -175,6 +180,7 @@ export class Village {
   step(delta) {
     this.time += delta;
     this.loadTerrain();
+    this.events?.step(delta);
 
     for (const season of SEASONS) {
       const target = season === this.season ? 1 : 0;
@@ -383,6 +389,7 @@ export class Village {
     }
 
     this.ambient.drawSky(ctx);
+    this.events?.drawTop(ctx);
   }
 
   /** The night, with its lights (screen coordinates). */
@@ -473,6 +480,9 @@ export class Village {
     const near = (x, y, distance = INTERACT_DISTANCE) =>
       Math.hypot(feet.x - x, feet.y - y) <= distance;
     const server = (objectId) => () => this.interact(objectId);
+
+    const event = this.events?.interactionAt(feet, server);
+    if (event) return event;
 
     if (WELL.tiles.length && near(WELL.x + 12, WELL.y + 26, 20)) {
       return { label: "Encher o cantil", run: server("well") };

@@ -166,6 +166,8 @@ const regions = new Regions({
   camera,
   menu,
   screen: { width: canvas.width, height: canvas.height },
+  collision,
+  island,
 });
 
 // The living map: seasons, snow and mud, lights, animals, props and the
@@ -179,6 +181,7 @@ const village = new Village({
   interiors,
   regions,
   screen: { width: canvas.width, height: canvas.height },
+  island,
 });
 
 // NPCs make each other talk when they meet

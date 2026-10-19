@@ -1,7 +1,8 @@
 // Places beyond the island, reached by boat from the pier: a forest (wood,
 // mushrooms and the camp of the bandits), a mine (ore and crystals) and a
-// market town (tools, seeds and buyers). The maps are in the frontend
-// (tiled/regions/*.tmx); here are what the player gets from them.
+// market town (tools, seeds and buyers). The maps are generated in the
+// frontend (world/island/regions.js); here is what the player gets from
+// them and how they change (`levels`).
 
 import { SPRITES, spriteGender } from "../prompts/npcGeneration.js";
 import { townsfolkPrompt, townsfolkSchema } from "../prompts/townsfolk.js";
@@ -27,12 +28,46 @@ export const REGIONS = {
 };
 export const VILLAGE = "village";
 
+// Small islands nobody lives on, found by exploring the open sea (in this
+// order). Their maps are generated in the frontend too.
+export const ISLETS = {
+  islet_1: {
+    name: "Ilha das Gaivotas",
+    prompt: "a small rocky island full of seagulls, with berries and driftwood",
+  },
+  islet_2: {
+    name: "Rochedo do Farol",
+    prompt: "a cliff island with the ruins of an old lighthouse",
+  },
+  islet_3: {
+    name: "Ilha do Naufrágio",
+    prompt: "a sandy island where an old ship ran aground long ago",
+  },
+};
+const EXPLORE_MINUTES = 60;
+const ISLET_LOOT = [
+  "mapa antigo",
+  "concha rara",
+  "poção",
+  "garrafa com bilhete",
+];
+
 const TRAVEL_MINUTES = 30;
 const DAY = 24 * 60;
 // When things grow back (game minutes)
 const RESPAWN = { tree: 2 * DAY, ore: DAY, crystal: 3 * DAY, forage: 90 };
 const TOOLS = { tree: "machado", ore: "picareta", crystal: "picareta" };
 const MAX_NODE = 20; // tree_0 .. tree_19, ore_0...
+
+// How the regions change with what the player does there (levels 0..3 of
+// the forest, 0..2 of the mine and the town; the frontend draws them)
+const FOREST_GROWTH_DAYS = 2; // Days without cutting for the forest to grow
+const MAX_FOREST_GROWTH = 3;
+const MINE_GALLERIES = [10, 25]; // Rocks and crystals mined
+const TOWN_BUILDINGS = [40, 120]; // Coins earned selling in the town
+
+const levelOf = (value, thresholds) =>
+  thresholds.filter((threshold) => value >= threshold).length;
 
 // People of the town (created the first time the player goes there)
 export const TOWNSFOLK_FIRST_ID = 400;
@@ -116,6 +151,74 @@ export class Regions {
     // People living in the town (NPC ids), created on the first visit
     this.townsfolk = [];
     this.isCreatingTownsfolk = false;
+    // What changes the regions (see `levels`)
+    this.growth = { forest: 0, forestSince: 1, mined: 0, sold: 0 };
+    // Islets found at sea (ids, in the order they were found) and the
+    // chests already opened there
+    this.discovered = [];
+    this.isletChests = [];
+  }
+
+  /** The place `id` (region or islet found), or null. */
+  placeOf(id) {
+    return (
+      REGIONS[id] ?? (this.discovered.includes(id) ? ISLETS[id] : null) ?? null
+    );
+  }
+
+  /** How much each region changed: forest, mine and town. */
+  get levels() {
+    return {
+      forest: this.growth.forest,
+      mine: levelOf(this.growth.mined, MINE_GALLERIES),
+      town: levelOf(this.growth.sold, TOWN_BUILDINGS),
+    };
+  }
+
+  /**
+   * The forest grows where nobody cuts it: every few days without felling
+   * trees, new ones are big enough to be cut. Returns whether it changed.
+   */
+  async update(day) {
+    const { growth } = this;
+    if (
+      growth.forest >= MAX_FOREST_GROWTH ||
+      day - growth.forestSince < FOREST_GROWTH_DAYS
+    ) {
+      return false;
+    }
+
+    growth.forest++;
+    growth.forestSince = day;
+    this.session.addNews(
+      "A Floresta Sombria cresceu: há árvores novas para cortar perto da trilha",
+    );
+    await this.session.rememberAll(
+      "[village news] Nobody has cut trees in the forest for days: it is growing thicker, with new trees near the trail.",
+    );
+    return true;
+  }
+
+  /** A level of the mine or the town went up: everybody hears about it. */
+  async levelUp(region, before) {
+    const { session } = this;
+    const level = this.levels[region];
+    if (level <= before) return;
+
+    const news = {
+      mine: [
+        "Os mineiros abriram uma galeria nova na Mina do Penhasco, com mais minério",
+        "[village news] So much ore was taken from the mine that a new gallery was opened in it, with more ore and crystals.",
+      ],
+      town: [
+        "Pedravento está crescendo com o comércio: construíram um prédio novo na cidade",
+        "[village news] The trade of the traveler made the town of Pedravento richer: a new building was built there.",
+      ],
+    }[region];
+    session.notify(`${news[0]}!`, "good");
+    session.addNews(news[0]);
+    session.emitWorldState();
+    await session.rememberAll(news[1]);
   }
 
   get now() {
@@ -136,7 +239,9 @@ export class Regions {
   }
 
   regionName(id) {
-    return id === VILLAGE ? "a vila" : (REGIONS[id]?.name ?? id);
+    return id === VILLAGE
+      ? "a vila"
+      : (REGIONS[id]?.name ?? ISLETS[id]?.name ?? id);
   }
 
   // ---------------------------------------------------------------------------
@@ -145,9 +250,16 @@ export class Regions {
   async travel(destination) {
     const { session } = this;
 
-    if (destination !== VILLAGE && !REGIONS[destination]) {
+    if (destination === "explore") return this.explore();
+    if (destination !== VILLAGE && !this.placeOf(destination)) {
       throw new Error(`Unknown region: ${destination}`);
     }
+
+    const problem = session.mapEvents?.travelProblem(
+      destination,
+      this.location,
+    );
+    if (problem) return { ok: false, travelBlocked: true, message: problem };
 
     this.location = destination;
     session.clock.advance(TRAVEL_MINUTES);
@@ -165,7 +277,73 @@ export class Regions {
       message:
         destination === VILLAGE
           ? "Você voltou de barco para a vila."
-          : `Depois de meia hora de barco, você chegou: ${REGIONS[destination].name}.`,
+          : `Depois de meia hora de barco, você chegou: ${this.placeOf(destination).name}.`,
+    };
+  }
+
+  /** The player sails into the open sea and finds the next islet. */
+  async explore() {
+    const { session } = this;
+    const next = Object.keys(ISLETS).find(
+      (id) => !this.discovered.includes(id),
+    );
+
+    if (!next) {
+      return {
+        ok: false,
+        travelBlocked: true,
+        message:
+          "Você já conhece todas as ilhas por aqui. Escolha um destino no mapa.",
+      };
+    }
+    const problem = session.mapEvents?.travelProblem(next, this.location);
+    if (problem) return { ok: false, travelBlocked: true, message: problem };
+
+    this.discovered.push(next);
+    this.location = next;
+    session.clock.advance(EXPLORE_MINUTES);
+    session.emit(protocol.CLOCK, { data: session.clock.toJSON() });
+    session.emitWorldState();
+
+    const { name } = ISLETS[next];
+    session.addNews(`O viajante descobriu uma ilha desconhecida: ${name}`);
+    session.runInBackground(
+      session.rememberAll(
+        `[village news] The traveler sailed into the open sea and found an island nobody knew: ${name} (${ISLETS[next].prompt}).`,
+      ),
+    );
+    session.save();
+    return {
+      ok: true,
+      travel: next,
+      discovered: next,
+      message: `Depois de uma hora no mar aberto, você avistou terra: ${name}! Ela foi marcada no mapa náutico.`,
+    };
+  }
+
+  /** The chest of an islet: something the sea brought, once. */
+  openIsletChest() {
+    const { session } = this;
+    const id = this.location;
+
+    if (!ISLETS[id]) throw new Error("Not on an islet");
+    if (this.isletChests.includes(id)) {
+      return { ok: false, message: "O baú está vazio." };
+    }
+
+    this.isletChests.push(id);
+    const coins = randomInt(15, 35);
+    const item =
+      ISLET_LOOT[Object.keys(ISLETS).indexOf(id) % ISLET_LOOT.length];
+    session.player.addItem(COINS, coins);
+    session.player.addItem(item, 1);
+    session.emitPlayerState();
+    session.emitWorldState();
+    return {
+      ok: true,
+      item,
+      quantity: 1,
+      message: `No baú meio enterrado havia ${coins} moedas e ${item}!`,
     };
   }
 
@@ -217,6 +395,10 @@ export class Regions {
     }
 
     this.depleted.set(key, this.now + RESPAWN[kind]);
+    const mineBefore = this.levels.mine;
+    if (kind === "tree") this.growth.forestSince = session.clock.day;
+    if (kind === "ore" || kind === "crystal") this.growth.mined++;
+    session.runInBackground(this.levelUp("mine", mineBefore));
     const loot = rollNode(kind);
     loot.forEach(([item, quantity]) => session.player.addItem(item, quantity));
     session.emitPlayerState();
@@ -413,6 +595,9 @@ export class Regions {
 
     session.player.removeItem(item, owned);
     session.player.addItem(COINS, owned * price);
+    const townBefore = this.levels.town;
+    this.growth.sold += owned * price;
+    session.runInBackground(this.levelUp("town", townBefore));
     session.emitPlayerState();
     return {
       ok: true,
@@ -435,6 +620,9 @@ export class Regions {
         guarded: this.campGuarded,
         chestLooted: this.camp.chestLooted,
       },
+      levels: this.levels,
+      discovered: this.discovered,
+      isletChests: this.isletChests,
     };
   }
 
@@ -444,6 +632,9 @@ export class Regions {
       depleted: [...this.depleted],
       camp: this.camp,
       townsfolk: this.townsfolk,
+      growth: this.growth,
+      discovered: this.discovered,
+      isletChests: this.isletChests,
     };
   }
 
@@ -452,5 +643,12 @@ export class Regions {
     this.depleted = new Map(state.depleted);
     this.camp = state.camp;
     this.townsfolk = state.townsfolk ?? [];
+    this.discovered = state.discovered ?? [];
+    this.isletChests = state.isletChests ?? [];
+    this.growth = {
+      ...this.growth,
+      forestSince: this.session.clock.day,
+      ...state.growth,
+    };
   }
 }

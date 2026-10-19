@@ -117,3 +117,73 @@ test("the first trip to the town creates its people", async () => {
   assert.equal(llm.calls.filter((name) => name === "townsfolk").length, 1);
   assert.deepEqual(session.toState().regions.townsfolk, [400, 401, 402]);
 });
+
+test("regions change with what the player does there", async () => {
+  const { session, sent } = await recordingSession(fakeLlm());
+  setTime(session, 10 * 60);
+  assert.deepEqual(session.regions.levels, { forest: 0, mine: 0, town: 0 });
+
+  // The forest grows where nobody cuts
+  assert.equal(await session.regions.update(2), false);
+  assert.equal(await session.regions.update(3), true);
+  assert.equal(session.regions.levels.forest, 1);
+  // Cutting a tree restarts the count (what grew stays)
+  await session.interact("travel:forest");
+  session.player.addItem("machado", 1);
+  setTime(session, 10 * 60 + 3 * 24 * 60); // Day 4
+  await session.interact("tree_1");
+  assert.equal(await session.regions.update(5), false);
+  assert.equal(session.regions.levels.forest, 1);
+
+  // Mining a lot opens a gallery
+  await session.interact("travel:mine");
+  session.player.addItem("picareta", 1);
+  for (let i = 0; i < 10; i++) {
+    session.regions.depleted.clear();
+    await session.interact(`ore_${i % 5}`);
+  }
+  await session.flush();
+  assert.equal(session.regions.levels.mine, 1);
+  assert.ok(sent.some((m) => /galeria nova/.test(m.data?.text)));
+
+  // Selling a lot in the town makes it grow
+  await session.interact("travel:town");
+  session.player.addItem("cristal", 3);
+  await session.interact("trade:merchant_buyer:sell:2");
+  await session.flush();
+  assert.equal(session.regions.levels.town, 1);
+  assert.deepEqual(session.regions.toJSON().levels, {
+    forest: 1,
+    mine: 1,
+    town: 1,
+  });
+
+  // Saved with the game
+  const restored = session.regions.toState();
+  assert.deepEqual(restored.growth.mined, 10);
+});
+
+test("exploring the open sea finds the islets, one by one", async () => {
+  const { session } = await recordingSession(fakeLlm());
+  setTime(session, 10 * 60);
+  await assert.rejects(session.interact("travel:islet_1"), /Unknown region/);
+
+  const found = await session.interact("travel:explore");
+  assert.equal(found.travel, "islet_1");
+  assert.match(found.message, /Ilha das Gaivotas/);
+  assert.equal(session.clock.minuteOfDay, 11 * 60);
+  assert.deepEqual(session.regions.toJSON().discovered, ["islet_1"]);
+
+  const chest = await session.interact("islet_chest");
+  assert.equal(chest.ok, true);
+  assert.equal((await session.interact("islet_chest")).ok, false);
+  assert.equal((await session.interact("forage_0")).ok, true);
+
+  await session.interact("travel:village");
+  assert.equal((await session.interact("travel:islet_1")).travel, "islet_1");
+  await session.interact("travel:explore");
+  await session.interact("travel:explore");
+  const done = await session.interact("travel:explore");
+  assert.equal(done.ok, false);
+  assert.equal(session.regions.toState().discovered.length, 3);
+});

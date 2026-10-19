@@ -629,3 +629,82 @@ export function crystal(ctx, x, y, t, taken) {
     rect(ctx, glow ? "#ffffff" : "#e6d6ff", x + dx, y - 4 - height + 1, 1, 1);
   }
 }
+
+/** A tree knocked down by a storm, lying across the road (`x` = middle). */
+export function fallenTree(ctx, x, y) {
+  rect(ctx, "rgba(0,0,0,0.25)", x - 26, y - 1, 52, 3);
+  // Roots torn out of the ground, on the left
+  rect(ctx, "#2b1d1a", x - 30, y - 14, 7, 14);
+  rect(ctx, "#6e4430", x - 29, y - 13, 5, 12);
+  for (const [dx, dy] of [
+    [-33, -12],
+    [-34, -6],
+    [-32, -2],
+  ]) {
+    rect(ctx, "#5a3420", x + dx, y + dy, 4, 1);
+  }
+  rect(ctx, "#7a5a3a", x - 31, y - 5, 3, 4); // Earth on the roots
+  // Trunk
+  rect(ctx, "#2b1d1a", x - 24, y - 10, 40, 9);
+  rect(ctx, "#7a4a2c", x - 23, y - 9, 38, 7);
+  rect(ctx, "#9a6240", x - 23, y - 9, 38, 2);
+  rect(ctx, "#5a3420", x - 18, y - 5, 6, 1);
+  rect(ctx, "#5a3420", x - 4, y - 4, 8, 1);
+  // Crown on the right (round blobs of leaves), with broken branches
+  const blob = (cx, cy, radius, color) => {
+    for (let py = -radius; py <= radius; py++) {
+      const span = Math.round(Math.sqrt(radius * radius - py * py) * 1.2);
+      rect(ctx, color, x + cx - span, y + cy + py, span * 2, 1);
+    }
+  };
+  for (const [cx, cy, radius] of [
+    [22, -10, 9],
+    [30, -9, 7],
+    [16, -6, 6],
+  ]) {
+    blob(cx, cy, radius + 1, "#2b1d1a");
+  }
+  blob(22, -10, 9, "#3f7f5a");
+  blob(30, -9, 7, "#498f7b");
+  blob(16, -6, 6, "#3f7f5a");
+  blob(21, -12, 6, "#49a867");
+  blob(29, -11, 4, "#4faf7b");
+  rect(ctx, "#bdef6f", x + 19, y - 15, 2, 1);
+  rect(ctx, "#bdef6f", x + 28, y - 13, 2, 1);
+  rect(ctx, "#bdef6f", x + 23, y - 9, 1, 1);
+  rect(ctx, WOOD_DARK, x + 4, y - 15, 2, 6);
+  rect(ctx, WOOD_DARK, x + 6, y - 17, 4, 2);
+  // Leaves scattered on the road
+  for (const [dx, dy] of [
+    [-10, 1],
+    [6, 2],
+    [-2, -12],
+    [32, 0],
+  ]) {
+    rect(ctx, "#49a867", x + dx, y + dy, 2, 1);
+  }
+}
+
+/** A tree burned by the fire of the forest. */
+export function burntStump(ctx, x, y) {
+  rect(ctx, "rgba(0,0,0,0.3)", x - 9, y - 2, 18, 3);
+  rect(ctx, "#1a1414", x - 5, y - 20, 10, 19);
+  rect(ctx, "#2e2422", x - 4, y - 19, 8, 18);
+  rect(ctx, "#4a3a34", x - 4, y - 19, 2, 18);
+  rect(ctx, "#1a1414", x - 9, y - 18, 5, 2);
+  rect(ctx, "#1a1414", x + 4, y - 14, 6, 2);
+  rect(ctx, "#ff7a3a", x - 1, y - 9, 1, 1); // Embers
+  rect(ctx, "#ffb43c", x + 2, y - 5, 1, 1);
+}
+
+/** Flames (`t` = time in ms), bottom centered at (x, y). */
+export function flames(ctx, x, y, t, size = 1) {
+  const frame = Math.floor(t / 110);
+  for (let i = 0; i < 5; i++) {
+    const height = Math.round((6 + ((frame + i * 3) % 5) * 2) * size);
+    const dx = Math.round((i - 2) * 3 * size);
+    rect(ctx, "#c4351e", x + dx - 1, y - height, 3, height);
+    rect(ctx, "#ff7a2a", x + dx - 1, y - height + 2, 3, height - 3);
+    rect(ctx, "#ffd36a", x + dx, y - Math.round(height / 2), 1, 3);
+  }
+}

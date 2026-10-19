@@ -78,6 +78,7 @@ export class VillageLife {
       map: this.session.villageMap?.toJSON() ?? null,
       terrain: this.session.terrain?.toJSON() ?? null,
       regions: this.session.regions?.toJSON() ?? null,
+      events: this.session.mapEvents?.toJSON() ?? null,
       season: this.season,
       seasonLabel: SEASON_INFO[this.season].label,
       festival: festival && {

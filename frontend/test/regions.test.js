@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   REGIONS,
+  applyRegions,
   interiorPoint,
   worldCollisionRows,
 } from "../src/levels/world.js";
@@ -16,7 +17,15 @@ const SEEDS = Array.from(
 );
 
 // Points the player uses (the server knows them by these names)
-const USED = ["tree", "ore", "crystal", "forage", "camp_chest", "merchant"];
+const USED = [
+  "tree",
+  "ore",
+  "crystal",
+  "forage",
+  "camp_chest",
+  "islet_chest",
+  "merchant",
+];
 
 test("regions have the size of their place in the world", () => {
   const layouts = generateRegions(11);
@@ -58,9 +67,35 @@ test("the same seed makes the same regions", () => {
   }
 });
 
-test("the player can arrive in every region and reach what is there", () => {
+const GROWN = { forest: 3, mine: 2, town: 2 };
+
+test("regions grow without changing what was there", () => {
   for (const seed of SEEDS) {
+    const before = generateRegions(seed);
+    const after = generateRegions(seed, GROWN);
+    for (const id of ["forest", "mine", "town"]) {
+      for (const [name, point] of Object.entries(before[id].points)) {
+        // A new building of the town can take the place of a lamp
+        if (point.kind === "lamp") continue;
+        assert.deepEqual(after[id].points[name], point, `${id}:${name}`);
+      }
+    }
+    const trees = (l) =>
+      Object.values(l.points).filter((p) => p.kind === "tree").length;
+    assert.equal(trees(after.forest), trees(before.forest) + 6, `${seed}`);
+    assert.ok(after.town.houses.length > before.town.houses.length);
+  }
+});
+
+const cases = SEEDS.flatMap((seed) => [
+  [seed, {}],
+  [seed, GROWN],
+]);
+
+test("the player can arrive in every region and reach what is there", () => {
+  for (const [seed, levels] of cases) {
     createIsland(seed);
+    applyRegions(generateRegions(seed, levels));
     const grid = new CollisionGrid(worldCollisionRows(), 12);
     const isBlocked = (x, y) => grid.isBlocked(x, y, 16, 12);
 

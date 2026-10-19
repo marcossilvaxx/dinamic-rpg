@@ -128,7 +128,14 @@ async function render() {
 
   // The regions reached by boat, generated like the island (the things that
   // change in the game are drawn over them here)
-  const names = { forest: "Floresta", mine: "Mina", town: "Pedravento" };
+  const names = {
+    forest: "Floresta",
+    mine: "Mina",
+    town: "Pedravento",
+    islet_1: "Ilha das Gaivotas",
+    islet_2: "Rochedo do Farol",
+    islet_3: "Ilha do Naufrágio",
+  };
   for (const layout of Object.values(generateRegions(round * 7919))) {
     const { background, foreground } = paintRegion(layout);
     const ctx = figure(
@@ -154,6 +161,7 @@ async function render() {
         tent: () => sprites.tent(ctx, point.x, point.y),
         campfire: () => sprites.campfire(ctx, point.x, point.y, 0, true),
         stall: () => sprites.stall(ctx, point.x, point.y, point.x),
+        islet_chest: () => sprites.chest(ctx, point.x, point.y - 8, false),
         boat: () => sprites.boat(ctx, point.x, point.y, 0),
       }[point.kind];
       draw?.();

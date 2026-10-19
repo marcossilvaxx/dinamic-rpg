@@ -18,6 +18,7 @@ import { PlayerChat } from "./PlayerChat.js";
 import { COINS, PlayerState } from "./PlayerState.js";
 import { Quests } from "./Quests.js";
 import { titlesPrompt, titlesSchema } from "../prompts/titles.js";
+import { MapEvents } from "./MapEvents.js";
 import { Regions } from "./Regions.js";
 import { SEASON_INFO, seasonOf } from "./seasons.js";
 import { SeekPlanner } from "./Seeking.js";
@@ -146,6 +147,7 @@ export class GameSession {
     this.villageMap = new VillageMap(this);
     this.terrain = new Terrain(this);
     this.regions = new Regions(this);
+    this.mapEvents = new MapEvents(this);
 
     this.paused = false;
     this.moods = new Map(); // npcId -> -5..5
@@ -430,7 +432,11 @@ export class GameSession {
       defender: this.combat.title,
       raid: this.bandits.describe(),
       surroundings:
-        [this.villageMap.describe(), this.terrain.describe()]
+        [
+          this.villageMap.describe(),
+          this.terrain.describe(),
+          this.mapEvents.describe(),
+        ]
           .filter(Boolean)
           .join(" ") || null,
       bond: this.bonds.describeFor(npcId),
@@ -655,6 +661,8 @@ export class GameSession {
       return this.regions.travel(objectId.slice("travel:".length));
     }
     if (objectId === "camp_chest") return this.regions.openCampChest();
+    if (objectId === "fallen_tree") return this.mapEvents.clearFallenTree();
+    if (objectId === "islet_chest") return this.regions.openIsletChest();
     if (objectId.startsWith("trade:")) {
       const [, merchant, mode, index] = objectId.split(":");
       return this.regions.trade(merchant, mode, Number(index));
@@ -895,6 +903,7 @@ export class GameSession {
       villageMap: this.villageMap.toState(),
       terrain: this.terrain.toState(),
       regions: this.regions.toState(),
+      mapEvents: this.mapEvents.toState(),
     };
   }
 
@@ -963,6 +972,7 @@ export class GameSession {
     if (state.villageMap) this.villageMap.restoreState(state.villageMap);
     if (state.terrain) this.terrain.restoreState(state.terrain);
     if (state.regions) this.regions.restoreState(state.regions);
+    if (state.mapEvents) this.mapEvents.restoreState(state.mapEvents);
   }
 
   /** Stops the session; `forget` also deletes it from Redis. */

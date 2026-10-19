@@ -70,6 +70,19 @@ export const REGIONS = [
     columns: 37,
     rows: 24,
   },
+  // Islets found exploring the open sea (after the interiors of the lots)
+  ...[
+    ["islet_1", "Ilha das Gaivotas"],
+    ["islet_2", "Rochedo do Farol"],
+    ["islet_3", "Ilha do Naufrágio"],
+  ].map(([id, name], i) => ({
+    id,
+    name,
+    origin: { x: 4400 + i * 400, y: 0 },
+    columns: 30,
+    rows: 20,
+    islet: true,
+  })),
 ].map((region) => ({
   ...region,
   map: blankMap(region.columns, region.rows),
@@ -82,6 +95,7 @@ export const REGIONS = [
 export function applyRegions(layouts) {
   for (const region of REGIONS) {
     const layout = layouts[region.id];
+    if (!layout) continue;
     if (layout.columns !== region.columns || layout.rows !== region.rows) {
       throw new Error(`The ${region.id} has the wrong size`);
     }

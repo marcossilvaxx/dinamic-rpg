@@ -287,6 +287,90 @@ export function paintTown(layout) {
 }
 
 export const paintRegion = (layout) =>
-  ({ forest: paintForest, mine: paintMine, town: paintTown })[layout.id](
-    layout,
-  );
+  layout.landmark
+    ? paintIslet(layout)
+    : { forest: paintForest, mine: paintMine, town: paintTown }[layout.id](
+        layout,
+      );
+
+// ---------------------------------------------------------------------------
+// Islets
+
+function paintLighthouse(bg, fg, { column, row }) {
+  const x = column * TILE;
+  const y = row * TILE;
+  // Broken tower: stones, a door and the top fallen next to it
+  rect(bg, "rgba(0, 0, 0, 0.25)", x - 2, y + 32, 40, 5);
+  rect(bg, OUTLINE, x + 6, y + 2, 24, 34);
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 3; c++) {
+      const tone = (r + c) % 3 === 0 ? "#c9c2b4" : "#b3ab9c";
+      rect(bg, tone, x + 7 + c * 8 - (r % 2) * 3, y + 3 + r * 4, 7, 3);
+    }
+  }
+  rect(bg, "#e9e3d6", x + 7, y + 3, 22, 1);
+  rect(bg, "#c4475d", x + 7, y + 12, 22, 3); // Old red stripe
+  rect(bg, "#2b1d1a", x + 15, y + 24, 6, 12);
+  rect(fg, OUTLINE, x + 4, y - 14, 28, 18);
+  rect(fg, "#b3ab9c", x + 6, y - 12, 24, 15);
+  rect(fg, "#e9e3d6", x + 6, y - 12, 24, 2);
+  rect(fg, "#ffd36a", x + 13, y - 9, 10, 6); // The glass of the lamp
+  rect(fg, "#2b1d1a", x + 11, y - 15, 3, 3); // Broken edges
+  rect(fg, "#2b1d1a", x + 24, y - 16, 4, 4);
+  for (const [dx, dy] of [
+    [-6, 30],
+    [36, 28],
+    [32, 34],
+  ]) {
+    rect(bg, OUTLINE, x + dx, y + dy, 6, 4);
+    rect(bg, "#b3ab9c", x + dx + 1, y + dy + 1, 4, 2);
+  }
+}
+
+function paintWreck(bg, { column, row }) {
+  const x = column * TILE;
+  const y = row * TILE;
+  rect(bg, "rgba(0, 0, 0, 0.25)", x, y + 22, 62, 4);
+  // Hull lying on its side, broken planks and the mast
+  rect(bg, OUTLINE, x, y + 6, 60, 18);
+  rect(bg, "#6e4430", x + 1, y + 7, 58, 16);
+  for (let i = 0; i < 4; i++) rect(bg, "#9a6240", x + 1, y + 8 + i * 4, 58, 2);
+  rect(bg, "#2b1d1a", x + 18, y + 10, 10, 8); // Hole in the hull
+  rect(bg, "#2b1d1a", x + 40, y + 12, 6, 5);
+  rect(bg, OUTLINE, x + 30, y - 18, 4, 26);
+  rect(bg, "#c98a5a", x + 31, y - 17, 2, 24);
+  rect(bg, "#e8e0c8", x + 33, y - 16, 14, 10); // Torn sail
+  rect(bg, "#c9c0a8", x + 40, y - 8, 7, 3);
+}
+
+function paintRocks(bg, landmarks) {
+  for (const { column, row, kind } of landmarks) {
+    const x = column * TILE;
+    const y = row * TILE;
+    const w = kind === "gulls" ? 22 : 11;
+    rect(bg, "rgba(0, 0, 0, 0.25)", x, y + w - 2, w + 2, 3);
+    rect(bg, OUTLINE, x, y + 1, w, w - 1);
+    rect(bg, "#8d9096", x + 1, y + 2, w - 2, w - 3);
+    rect(bg, "#b4b9bf", x + 2, y + 2, w - 6, 3);
+    // White marks of the gulls and a nest
+    rect(bg, "#f4f4f0", x + 3, y + 6, 2, 1);
+    rect(bg, "#f4f4f0", x + w - 5, y + 4, 1, 2);
+    rect(bg, "#b98a5a", x + w / 2 - 3, y - 1, 7, 3);
+    rect(bg, "#efe3cf", x + w / 2 - 1, y - 1, 2, 1);
+  }
+}
+
+export function paintIslet(layout) {
+  const { background, foreground, bg, fg } = canvases(layout);
+  const random = seeded(layout.seed + 13);
+
+  paintGround(bg, layout);
+  paintPier(bg, layout);
+  if (layout.landmark === "lighthouse")
+    paintLighthouse(bg, fg, layout.landmarks[0]);
+  else if (layout.landmark === "wreck") paintWreck(bg, layout.landmarks[0]);
+  else paintRocks(bg, layout.landmarks);
+
+  trees(bg, fg, layout, random);
+  return { background, foreground };
+}
