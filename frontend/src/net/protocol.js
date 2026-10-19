@@ -95,10 +95,11 @@ export const WORLD_STATE = "world_state";
 export const NPC_ACTION = "npc_action";
 export const WORLD_EVENT = "world_event"; // data: { headline }
 // Answer to session_info: data: { exists, inUse?, day?, moment?, season?,
-//                                  villagers?, buildings? }
+//                                  villagers?, buildings?, islandSeed? }
 export const SAVED_GAME = "saved_game";
 // Sent first, so the client can resume the session after a reload
-export const SESSION = "session"; // data: { sessionId, resumed }
+// data: { sessionId, resumed, islandSeed }
+export const SESSION = "session";
 // Reputation, inventory, quests, mystery, news... (journal)
 export const PLAYER_STATE = "player_state";
 // data: { totalMinutes, msPerGameMinute, paused }

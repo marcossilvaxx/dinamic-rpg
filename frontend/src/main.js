@@ -54,6 +54,7 @@ import { createIsland, paintIsland } from "./world/island";
 import { roofContexts } from "./world/island/paint";
 import { occupationLabel } from "./utils/occupation";
 import {
+  adoptIslandSeed,
   islandSeed,
   startNewIsland,
   takeNewGameRequest,
@@ -69,7 +70,8 @@ const mainScene = new GameObject({
 
 // The island is generated from a seed (kept with the saved game): its layout
 // fills the places, props and collisions, then it is drawn
-const island = createIsland(islandSeed());
+const seed = islandSeed();
+const island = createIsland(seed);
 const islandImages = paintIsland(island);
 const villageImage = { image: islandImages.background, isLoaded: true };
 const map1 = new Map({
@@ -420,6 +422,7 @@ const startGame = ({ resume }) => {
       lots: LOTS.map(({ id, description }) => ({ id, description })),
       worldEventIntervalMs: WORLD_EVENT_INTERVAL_MS,
       resumeSessionId: resume ? savedId : null,
+      islandSeed: seed,
       forgetSessionId: resume ? null : savedId,
     },
   });
@@ -449,9 +452,11 @@ gameSocket.on("open", () => {
   }
 });
 
-gameSocket.on(protocol.SAVED_GAME, ({ data }) =>
-  mainMenu.show(data.exists ? data : null),
-);
+gameSocket.on(protocol.SAVED_GAME, ({ data }) => {
+  // The saved game is on another island (e.g. continued in other browser)
+  if (data.exists && adoptIslandSeed(data.islandSeed)) return;
+  mainMenu.show(data.exists ? data : null);
+});
 
 gameSocket.on(protocol.SESSION, ({ data }) => {
   storage.set(data.sessionId);

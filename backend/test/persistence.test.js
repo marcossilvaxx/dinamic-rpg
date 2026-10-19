@@ -40,6 +40,7 @@ test("a saved game is loaded with everything in place", async () => {
     places: PLACES,
   });
   session.attach(() => {});
+  session.islandSeed = 4242;
   setTime(session, 10 * 60);
 
   await session.chat(1, "Precisa de algo?");
@@ -55,6 +56,7 @@ test("a saved game is loaded with everything in place", async () => {
   const loaded = await GameSession.load(options(database));
 
   assert.equal(loaded.npcs.size, 3);
+  assert.equal(loaded.islandSeed, 4242);
   assert.equal(loaded.npcs.get(1).data.name, "Npc1");
   assert.equal(loaded.player.getReputation(2), 5);
   assert.equal(loaded.player.quests[0].title, "Lenha");
@@ -116,6 +118,9 @@ test("the main menu describes a saved game", async () => {
   assert.equal(saved.villagers, 2);
   assert.equal(saved.season, "Verão");
   assert.deepEqual(saved.buildings, []);
+  assert.equal(saved.islandSeed, null); // Saved before the seed was kept
+  session.islandSeed = 77;
+  assert.equal(describeSavedGame(session.toState()).islandSeed, 77);
 
   assert.equal(describeSavedGame(null), null);
   assert.equal(describeSavedGame({ ...session.toState(), version: 0 }), null);

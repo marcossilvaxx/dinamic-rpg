@@ -37,6 +37,17 @@ export function islandSeed() {
   return seed;
 }
 
+/**
+ * The saved game has another island (it is kept on the server): draws it
+ * after a reload. Returns false when it is already the island of the page.
+ */
+export function adoptIslandSeed(seed) {
+  if (!(seed > 0) || Number(read(SEED_KEY)) === seed) return false;
+  write(SEED_KEY, String(seed));
+  window.location.reload();
+  return true;
+}
+
 /** A new game: another island, built after a reload. */
 export function startNewIsland() {
   write(SEED_KEY, String(randomSeed()));

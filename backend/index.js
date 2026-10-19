@@ -164,6 +164,10 @@ const forgetSavedGame = async (sessionId) => {
   console.log(`[session ${sessionId}] Deleted (new game)`);
 };
 
+/** The seed of the island sent by the client (a positive integer), or null. */
+const sanitizeSeed = (value) =>
+  Number.isInteger(value) && value > 0 && value < 2 ** 31 ? value : null;
+
 const handlers = {
   // Main menu: what the saved game is (or that there is none)
   async [protocol.SESSION_INFO](ws, connection, { data }) {
@@ -193,6 +197,7 @@ const handlers = {
     }
 
     await forgetSavedGame(data?.forgetSessionId);
+    const islandSeed = sanitizeSeed(data?.islandSeed);
 
     const resumed =
       typeof data?.resumeSessionId === "string"
@@ -202,8 +207,17 @@ const handlers = {
     if (resumed) {
       connection.session = resumed;
       console.log(`[session ${resumed.id}] Resumed`);
+      // Games saved before the seed was kept take the one of the browser
+      if (!resumed.islandSeed && islandSeed) {
+        resumed.islandSeed = islandSeed;
+      }
+      resumed.save();
       send(ws, protocol.SESSION, {
-        data: { sessionId: resumed.id, resumed: true },
+        data: {
+          sessionId: resumed.id,
+          resumed: true,
+          islandSeed: resumed.islandSeed,
+        },
       });
       await sendGameState(ws, resumed);
       return;
@@ -211,8 +225,9 @@ const handlers = {
 
     const session = createSession(ws);
     connection.session = session;
+    session.islandSeed = islandSeed;
     send(ws, protocol.SESSION, {
-      data: { sessionId: session.id, resumed: false },
+      data: { sessionId: session.id, resumed: false, islandSeed },
     });
     send(ws, protocol.CLOCK, { data: session.clock.toJSON() });
 

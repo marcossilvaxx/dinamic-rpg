@@ -197,7 +197,7 @@ Cada partida é independente: na primeira vez, o backend gera um novo mundo e no
 
 ## A ilha e as regiões geradas
 
-A vila é uma ilha gerada a partir de uma semente, guardada no navegador junto com a partida salva: continuar uma partida desenha a mesma ilha, e cada novo jogo cria outra. A geração (`frontend/src/world/island/`) decide o formato da ilha (com falésias e praias), a praça no meio, a taverna, o armazém, a casa e os terrenos vazios ao redor, o píer, as estradas ligando as portas, a plantação cercada com o moinho, hortas cercadas perto das casas, árvores, postes, placas, baús, o poço e os lugares usados nas rotinas e nos prompts. Todos os prédios e interiores são desenhados por código (`world/procedural/`). Os testes geram dezenas de ilhas e conferem que todos os lugares, portas e objetos podem ser alcançados.
+A vila é uma ilha gerada a partir de uma semente, guardada junto com a partida salva (no navegador e no Redis): continuar uma partida desenha a mesma ilha, mesmo em outro navegador, e cada novo jogo cria outra. A geração (`frontend/src/world/island/`) decide o formato da ilha (com falésias e praias), a praça no meio, a taverna, o armazém, a casa e os terrenos vazios ao redor, o píer, as estradas ligando as portas, a plantação cercada com o moinho, hortas cercadas perto das casas, árvores, postes, placas, baús, o poço e os lugares usados nas rotinas e nos prompts. Todos os prédios e interiores são desenhados por código (`world/procedural/`). Os testes geram dezenas de ilhas e conferem que todos os lugares, portas e objetos podem ser alcançados.
 
 As regiões visitadas de barco são geradas da mesma forma, com a mesma semente (`world/island/regions.js`, desenhadas por `paintRegions.js`):
 
