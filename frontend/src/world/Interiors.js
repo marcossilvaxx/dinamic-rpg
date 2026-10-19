@@ -21,6 +21,7 @@ import { Vector2 } from "../utils/Vector2";
 import { Lighting } from "./Lighting";
 import { buildingAccess, interiorDarkness } from "./rules";
 import { TileMap } from "./TileMap";
+import { HomeLife } from "./HomeLife";
 
 const FRIEND_REPUTATION = 5;
 const WORK_HOURS = [8, 18];
@@ -64,6 +65,8 @@ export class Interiors {
 
     this.scene = scene;
     this.rooms = [];
+    // Mess, gifts and orders inside (see HomeLife.js)
+    this.homeLife = new HomeLife({ scene });
     INTERIORS.forEach((interior) => this.addRoom(interior));
   }
 
@@ -223,6 +226,7 @@ export class Interiors {
   // The villagers
 
   step(_delta, { fighting }) {
+    this.homeLife.step();
     if (this.current && !fighting && this.isAtExit(this.hero.position)) {
       this.exit();
     }

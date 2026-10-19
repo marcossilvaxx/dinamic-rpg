@@ -20,6 +20,7 @@ import { notifications } from "./hud/Notifications";
 import { overhearLog } from "./hud/OverhearLog";
 import { statusBanner } from "./hud/StatusBanner";
 import {
+  REGIONS,
   REGIONS_BY_ID,
   VILLAGE_HEIGHT,
   VILLAGE_WIDTH,
@@ -197,6 +198,8 @@ const journal = new Journal({
       visitor: Boolean(data.visitor),
     })),
   onAccuse: (npcId) => gameSocket.send(protocol.ACCUSE, { data: { npcId } }),
+  onAskMemory: (npcId) =>
+    gameSocket.send(protocol.NPC_MEMORY, { agentId: npcId }),
   onDecide: (decision) =>
     gameSocket.send(protocol.MYSTERY_DECISION, { data: { decision } }),
   input: mainScene.input,
@@ -359,15 +362,45 @@ mainScene.addChild(fights);
 mainScene.fights = fights;
 mainScene.chatOpen = () => chatContainer.isOpen;
 
+const townSpawnPosition = () => {
+  const square = interiorPoint(REGIONS_BY_ID.town, "square");
+  return npcSpawnPosition(new Vector2(square.x, square.y));
+};
+
+// A villager took the boat to Pedravento (or someone of the town came to
+// the village) for the day, or went back home in the evening
+gameSocket.on(protocol.NPC_UPDATED, ({ agentId, data }) => {
+  const npc = npcs.get(agentId);
+  if (!npc || !("away" in data)) return;
+  if (data.away === null) delete npc.data.away;
+  else npc.data.away = data.away;
+  const position = npc.isInTown
+    ? townSpawnPosition()
+    : npcSpawnPosition(PLACES_BY_ID.dock ?? NPC_SPAWN);
+  npc.stopFollow();
+  npc.cancelPath();
+  npc.indoor = null;
+  npc.position.x = position.x;
+  npc.position.y = position.y;
+});
+
 const addNpc = ({ id, data }) => {
   if (npcs.has(id)) {
     return;
   }
 
-  // People of the town live there (they don't come to the island)
+  // People of the town live there; villagers may be there for the day
+  const inTown = data.away ? data.away === "town" : data.region === "town";
+  if (inTown) {
+    const position = townSpawnPosition();
+    const person = new Npc(id, position.x, position.y, 16, 12, data);
+    mainScene.addChild(person);
+    npcs.set(id, person);
+    return;
+  }
+  // Someone of the town visiting the village: at the pier
   if (data.region === "town") {
-    const square = interiorPoint(REGIONS_BY_ID.town, "square");
-    const position = npcSpawnPosition(new Vector2(square.x, square.y));
+    const position = npcSpawnPosition(PLACES_BY_ID.dock ?? NPC_SPAWN);
     const person = new Npc(id, position.x, position.y, 16, 12, data);
     mainScene.addChild(person);
     npcs.set(id, person);
@@ -427,6 +460,20 @@ const startGame = ({ resume }) => {
       worldEventIntervalMs: WORLD_EVENT_INTERVAL_MS,
       resumeSessionId: resume ? savedId : null,
       islandSeed: seed,
+      // What each region has (the villagers ask only for what exists)
+      regionResources: Object.fromEntries(
+        REGIONS.map((region) => [
+          region.id,
+          Object.fromEntries(
+            ["tree", "ore", "crystal", "forage"].map((kind) => [
+              kind,
+              Object.values(region.map.points).filter(
+                (point) => point.kind === kind,
+              ).length,
+            ]),
+          ),
+        ]),
+      ),
       forgetSessionId: resume ? null : savedId,
     },
   });
@@ -470,6 +517,11 @@ gameSocket.on(protocol.SESSION, ({ data }) => {
     statusBanner.show("Partida retomada!", { duration: 3000 });
   }
 });
+
+// What an NPC remembers about the player (journal)
+gameSocket.on(protocol.NPC_MEMORY_RESULT, ({ agentId, data }) =>
+  journal.showMemory(agentId, data),
+);
 
 // What the village plan built on the empty lots (before the NPCs arrive)
 gameSocket.on(protocol.VILLAGE_LAYOUT, ({ data }) => {

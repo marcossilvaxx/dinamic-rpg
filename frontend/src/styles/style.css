@@ -841,3 +841,56 @@ body .loading button {
   border-radius: 4px;
   image-rendering: pixelated;
 }
+
+#game-container .nautical-chart p {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.journal .ambition {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-left: 3px solid #c9a46a;
+  background-color: rgba(201, 164, 106, 0.12);
+}
+
+.journal .ambition-steps {
+  margin: 2px 0;
+  padding-left: 4px;
+  list-style: none;
+  font-size: 13px;
+}
+
+.journal .ambition-steps .done {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.journal .ambition-steps .current {
+  font-weight: bold;
+}
+
+.journal .ambition-log {
+  font-style: italic;
+}
+
+.journal .memory-button {
+  margin-top: 4px;
+  padding: 3px 8px;
+  border: 1px solid #a8865e;
+  border-radius: 4px;
+  background-color: #f4e6c4;
+  cursor: pointer;
+}
+
+.journal .memory {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background-color: rgba(90, 64, 38, 0.08);
+}
+
+.journal .memory p {
+  margin: 2px 0;
+}

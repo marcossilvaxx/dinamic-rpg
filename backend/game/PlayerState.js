@@ -61,6 +61,10 @@ export class PlayerState {
     this.inventory.set(key, item);
   }
 
+  quantityOf(name) {
+    return this.inventory.get(itemKey(name))?.quantity ?? 0;
+  }
+
   hasItem(name, quantity = 1) {
     return (this.inventory.get(itemKey(name))?.quantity ?? 0) >= quantity;
   }
@@ -113,6 +117,8 @@ export class PlayerState {
     description,
     deadline = null,
     kind = "request",
+    item = null,
+    quantity = 0,
   }) {
     if (this.activeQuestFrom(giverId)) {
       return null;
@@ -126,6 +132,9 @@ export class PlayerState {
       description: description.trim(),
       deadline,
       kind,
+      // Something to bring (gathered beyond the island), or null
+      item,
+      quantity: item ? quantity : 0,
       status: "active", // active | completed | failed
       reminded: false, // The giver already reminded the player of the deadline
     };

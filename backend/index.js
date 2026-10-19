@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { WebSocketServer } from "ws";
 import { config } from "./config.js";
 import { connectDatabase } from "./db/index.js";
+import { sanitizeResources } from "./game/Gathering.js";
 import { GameSession, describeSavedGame } from "./game/GameSession.js";
 import { createLlmClient } from "./llm/client.js";
 import * as protocol from "./protocol.js";
@@ -198,6 +199,7 @@ const handlers = {
 
     await forgetSavedGame(data?.forgetSessionId);
     const islandSeed = sanitizeSeed(data?.islandSeed);
+    const regionResources = sanitizeResources(data?.regionResources);
 
     const resumed =
       typeof data?.resumeSessionId === "string"
@@ -211,6 +213,7 @@ const handlers = {
       if (!resumed.islandSeed && islandSeed) {
         resumed.islandSeed = islandSeed;
       }
+      if (regionResources) resumed.regionResources = regionResources;
       resumed.save();
       send(ws, protocol.SESSION, {
         data: {
@@ -226,6 +229,7 @@ const handlers = {
     const session = createSession(ws);
     connection.session = session;
     session.islandSeed = islandSeed;
+    session.regionResources = regionResources;
     send(ws, protocol.SESSION, {
       data: { sessionId: session.id, resumed: false, islandSeed },
     });
@@ -364,6 +368,13 @@ const handlers = {
 
   async [protocol.KNOCKED_OUT_BY_BANDITS](ws, { session }) {
     session.knockedOutByBandits();
+  },
+
+  async [protocol.NPC_MEMORY](ws, { session }, { agentId }) {
+    send(ws, protocol.NPC_MEMORY_RESULT, {
+      agentId,
+      data: await session.travelerMemory(agentId),
+    });
   },
 
   async [protocol.USE_ITEM](ws, { session }, { data }) {

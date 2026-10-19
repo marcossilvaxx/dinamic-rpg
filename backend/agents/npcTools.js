@@ -26,7 +26,11 @@ const tool = (name, description, properties) => ({
  * @param {{name: string}[]} village.villagers Other NPCs the NPC can
  *   introduce the player to.
  */
-export function buildNpcTools({ places = [], villagers = [] } = {}) {
+export function buildNpcTools({
+  places = [],
+  villagers = [],
+  items = [],
+} = {}) {
   const tools = [
     tool(
       "endConversation",
@@ -119,6 +123,17 @@ export function buildNpcTools({ places = [], villagers = [] } = {}) {
           type: "integer",
           description:
             "Deadline in game hours (1 to 12) when it is urgent, e.g. 'before nightfall'; 0 when there is no hurry. Say the deadline when asking.",
+        },
+        item: {
+          type: "string",
+          enum: ["", ...items],
+          description:
+            "When the request is to BRING something gathered beyond the island (forest, mine, islands), which thing; otherwise an empty string. Only these exist.",
+        },
+        quantity: {
+          type: "integer",
+          description:
+            "How many of `item` (1 to 5), or 0 when there is no item. Say where it can be found when asking.",
         },
         lastWords: lastWordsProperty("What you say when asking for help."),
       },

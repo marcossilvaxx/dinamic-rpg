@@ -72,6 +72,9 @@ const describeSituation = ({
   bond = "",
   companion = null,
   goal = null,
+  ambition = null,
+  trip = null,
+  gathering = null,
   injury = null,
   family = null,
   visitor = null,
@@ -87,7 +90,7 @@ const describeSituation = ({
   wares = [],
 }) => `# Right now
 
-It is ${time} (${period}). You are ${mood}, ${needs.energy} and ${needs.hunger}.${needs.asleep ? " You were sleeping and the traveler just woke you up." : ""}${weather ? ` Weather: ${weather}.` : ""}${season ? ` Season: ${season}.` : ""}${festival ? `\nToday's gathering of the village: ${festival} The traveler may invite you to go together (acceptInvitation if you want).` : ""}${visitor ? `\n${visitor}` : ""}${family ? `\n${family}` : ""}${injury ? `\n${injury}` : ""}${raid ? `\n${raid}` : ""}${surroundings ? `\nAround the village: ${surroundings}` : ""}${goal ? `\nYour personal goal these days: ${goal}. It is on your mind: you may talk about it, and ask the traveler for help with it (giveQuest).` : ""}
+It is ${time} (${period}). You are ${mood}, ${needs.energy} and ${needs.hunger}.${needs.asleep ? " You were sleeping and the traveler just woke you up." : ""}${weather ? ` Weather: ${weather}.` : ""}${season ? ` Season: ${season}.` : ""}${festival ? `\nToday's gathering of the village: ${festival} The traveler may invite you to go together (acceptInvitation if you want).` : ""}${visitor ? `\n${visitor}` : ""}${family ? `\n${family}` : ""}${injury ? `\n${injury}` : ""}${raid ? `\n${raid}` : ""}${surroundings ? `\nAround the village: ${surroundings}` : ""}${goal ? `\nYour personal goal these days: ${goal}. It is on your mind: you may talk about it, and ask the traveler for help with it (giveQuest).` : ""}${trip ? `\n${trip}` : ""}${gathering ? `\nThings the traveler can gather beyond the island now (by boat from the pier). If it fits your work or your plans, your request may be to bring some of them (giveQuest with item and quantity), saying where to find them:\n${gathering}` : ""}${ambition ? `\nThe big ambition of your life: ${ambition}. You care a lot about it; it may come up when it fits, and help from the traveler moves it forward.` : ""}
 
 # Your opinion of the traveler
 

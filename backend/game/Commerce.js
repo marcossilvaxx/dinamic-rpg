@@ -28,6 +28,8 @@ export class Commerce {
     this.market = new Map(); // npcId -> { factor, until, reason }
     this.lastRestockDay = 1;
     this.lastTrade = null; // "day:hour" of the last trading between NPCs
+    // Sales of each NPC since the morning (orders piling up at work)
+    this.orders = new Map();
   }
 
   wares(npcId) {
@@ -132,6 +134,7 @@ export class Commerce {
 
     session.player.addItem(ware.item, quantity);
     this.changeStock(npcId, ware.item, -quantity);
+    this.addOrder(npcId, quantity);
     Object.assign(action, {
       item: ware.item,
       quantity,
@@ -217,6 +220,7 @@ export class Commerce {
   async update(day, hour, random = Math.random) {
     if (hour >= RESTOCK_HOUR && day > this.lastRestockDay) {
       this.lastRestockDay = day;
+      this.orders.clear();
       for (const npcId of this.session.npcs.keys()) {
         this.initStock(npcId, random);
       }
@@ -228,6 +232,10 @@ export class Commerce {
       this.lastTrade = tradeKey;
       await this.tradeBetweenVillagers(random);
     }
+  }
+
+  addOrder(npcId, quantity) {
+    this.orders.set(npcId, (this.orders.get(npcId) ?? 0) + quantity);
   }
 
   async tradeBetweenVillagers(random = Math.random) {
@@ -253,6 +261,7 @@ export class Commerce {
       if (!ware) continue;
 
       this.changeStock(seller.id, ware.item, -1);
+      this.addOrder(seller.id, 1);
       await Promise.all([
         session.remember(
           buyer.id,
@@ -272,6 +281,7 @@ export class Commerce {
       market: [...this.market],
       lastRestockDay: this.lastRestockDay,
       lastTrade: this.lastTrade,
+      orders: [...this.orders],
     };
   }
 
@@ -282,5 +292,6 @@ export class Commerce {
     this.market = new Map(state.market);
     this.lastRestockDay = state.lastRestockDay;
     this.lastTrade = state.lastTrade;
+    this.orders = new Map(state.orders ?? []);
   }
 }

@@ -5,6 +5,7 @@
 
 import * as protocol from "../protocol.js";
 import { itemKey } from "./PlayerState.js";
+import { AMBITION_PROGRESS } from "./Ambitions.js";
 
 export const BONDS = {
   friend: { label: "Amigo(a)", minReputation: 4 },
@@ -45,6 +46,8 @@ export class Bonds {
     // Villagers that accepted to go to today's gathering: npcId -> day
     this.dates = new Map();
     this.datesStarted = new Set(); // "npcId:day" already called
+    // Gifts of the player each villager keeps at home: npcId -> [item]
+    this.gifts = new Map();
   }
 
   get(npcId) {
@@ -134,6 +137,11 @@ export class Bonds {
     const { session } = this;
     const npc = session.getNpc(npcId);
 
+    // What they didn't hate goes on a shelf of their home (the last ones)
+    if (!matches(item, npc.data.dislikes)) {
+      this.gifts.set(npcId, [...(this.gifts.get(npcId) ?? []), item].slice(-3));
+    }
+
     if (matches(item, npc.data.likes)) {
       session.player.changeReputation(npcId, GIFT_LOVED_BONUS);
       session.changeMood(npcId, 2);
@@ -144,6 +152,11 @@ export class Bonds {
       await session.remember(
         npcId,
         `[about the traveler] The traveler gave me ${item}, one of my favorite things.`,
+      );
+      await session.ambitions.advance(
+        npcId,
+        AMBITION_PROGRESS.gift,
+        `Ganhou do viajante: ${item}`,
       );
       return "It is one of your favorite things: you love it! Show it.";
     }
@@ -304,6 +317,7 @@ export class Bonds {
       bonds: [...this.bonds],
       dates: [...this.dates],
       datesStarted: [...this.datesStarted],
+      gifts: [...this.gifts],
     };
   }
 
@@ -311,5 +325,6 @@ export class Bonds {
     this.bonds = new Map(state.bonds);
     this.dates = new Map(state.dates);
     this.datesStarted = new Set(state.datesStarted);
+    this.gifts = new Map(state.gifts ?? []);
   }
 }

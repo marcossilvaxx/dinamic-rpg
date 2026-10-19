@@ -708,3 +708,95 @@ export function flames(ctx, x, y, t, size = 1) {
     rect(ctx, "#ffd36a", x + dx, y - Math.round(height / 2), 1, 3);
   }
 }
+
+/** Something on the floor of a messy room (`kind` 0..3). */
+export function clutter(ctx, x, y, kind) {
+  if (kind === 0) {
+    // Clothes thrown on the floor
+    rect(ctx, "#2b1d1a", x - 5, y - 4, 10, 4);
+    rect(ctx, "#8a5ab8", x - 4, y - 3, 8, 2);
+    rect(ctx, "#b48ad6", x - 4, y - 3, 3, 1);
+  } else if (kind === 1) {
+    // Papers
+    rect(ctx, "#efe3cf", x - 4, y - 3, 5, 3);
+    rect(ctx, "#d9c9a8", x, y - 2, 5, 3);
+    rect(ctx, "#8a7a64", x - 3, y - 2, 3, 1);
+  } else if (kind === 2) {
+    // Dirty plate and a cup on its side
+    rect(ctx, "#2b1d1a", x - 4, y - 2, 8, 2);
+    rect(ctx, "#e8e0c8", x - 3, y - 2, 6, 1);
+    rect(ctx, "#8a6a3a", x - 1, y - 2, 2, 1);
+    rect(ctx, "#c97a3a", x + 4, y - 3, 3, 2);
+  } else {
+    // Dust and crumbs
+    rect(ctx, "rgba(90, 70, 50, 0.45)", x - 5, y - 2, 10, 2);
+    rect(ctx, "#a8865e", x - 2, y - 3, 1, 1);
+    rect(ctx, "#a8865e", x + 2, y - 1, 1, 1);
+  }
+}
+
+/** A small shelf on the wall (`x` = left). */
+export function wallShelf(ctx, x, y, width) {
+  rect(ctx, "rgba(0,0,0,0.2)", x + 1, y + 2, width, 2);
+  rect(ctx, "#2b1d1a", x - 1, y - 1, width + 2, 4);
+  rect(ctx, WOOD, x, y, width, 2);
+  rect(ctx, WOOD_LIGHT, x, y, width, 1);
+  rect(ctx, WOOD_DARK, x + 2, y + 2, 1, 3);
+  rect(ctx, WOOD_DARK, x + width - 3, y + 2, 1, 3);
+}
+
+/** A gift of the player on the shelf, by what it is (bottom center). */
+export function giftIcon(ctx, x, y, item = "") {
+  const name = item.toLowerCase();
+  if (/flor/.test(name)) {
+    rect(ctx, "#a8573e", x - 2, y - 4, 4, 4);
+    rect(ctx, "#3f8f4a", x - 1, y - 7, 1, 3);
+    rect(ctx, "#ff8fb8", x - 2, y - 9, 2, 2);
+    rect(ctx, "#ffd84a", x + 1, y - 8, 2, 2);
+  } else if (/p[aã]o|bolo|torta/.test(name)) {
+    rect(ctx, "#8a5a2a", x - 4, y - 3, 8, 3);
+    rect(ctx, "#d9a05a", x - 3, y - 4, 6, 2);
+  } else if (/cristal|joia|anel|colar|concha/.test(name)) {
+    rect(ctx, "#8a5ab8", x - 1, y - 6, 3, 6);
+    rect(ctx, "#c9a6ff", x - 1, y - 6, 1, 4);
+  } else if (/peixe/.test(name)) {
+    rect(ctx, "#6c8fa8", x - 4, y - 3, 7, 3);
+    rect(ctx, "#6c8fa8", x + 3, y - 4, 2, 5);
+  } else if (/livro|mapa|carta|bilhete/.test(name)) {
+    rect(ctx, "#2b1d1a", x - 3, y - 7, 6, 7);
+    rect(ctx, "#8a2b2b", x - 2, y - 6, 4, 6);
+    rect(ctx, "#e2b73c", x - 2, y - 5, 4, 1);
+  } else if (/mel|po[cç][aã]o|vinho|garrafa|cerveja|leite/.test(name)) {
+    rect(ctx, "#2b1d1a", x - 2, y - 8, 4, 8);
+    rect(ctx, /mel/.test(name) ? "#e2a93c" : "#4f9a6a", x - 1, y - 6, 2, 5);
+    rect(ctx, WOOD_DARK, x - 1, y - 9, 2, 1);
+  } else {
+    // Wrapped with a ribbon
+    rect(ctx, "#2b1d1a", x - 3, y - 6, 6, 6);
+    rect(ctx, "#4f9ac8", x - 2, y - 5, 4, 4);
+    rect(ctx, "#ffd84a", x - 2, y - 3, 4, 1);
+    rect(ctx, "#ffd84a", x, y - 5, 1, 4);
+  }
+}
+
+/** A parcel of an order, with its tag. */
+export function parcel(ctx, x, y, seed = 0) {
+  const colors = ["#b98a5a", "#a8714a", "#c9a46a"];
+  rect(ctx, "rgba(0,0,0,0.2)", x - 5, y - 1, 11, 2);
+  rect(ctx, "#2b1d1a", x - 5, y - 8, 10, 8);
+  rect(ctx, colors[seed % 3], x - 4, y - 7, 8, 6);
+  rect(ctx, "#6e4430", x - 4, y - 4, 8, 1);
+  rect(ctx, "#efe3cf", x + 1, y - 7, 3, 2); // Tag with the name
+}
+
+/** A board on the wall with the notes of the orders. */
+export function noteBoard(ctx, x, y, notes) {
+  rect(ctx, "#2b1d1a", x - 1, y - 1, 20, 14);
+  rect(ctx, "#8a6a4a", x, y, 18, 12);
+  for (let i = 0; i < notes; i++) {
+    const nx = x + 2 + (i % 3) * 5;
+    const ny = y + 2 + Math.floor(i / 3) * 5;
+    rect(ctx, "#efe3cf", nx, ny, 4, 4);
+    rect(ctx, "#c4475d", nx + 1, ny, 1, 1);
+  }
+}

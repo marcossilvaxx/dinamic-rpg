@@ -4,6 +4,7 @@
 // gets a new goal.
 
 import { goalPrompt, goalSchema } from "../prompts/goal.js";
+import { AMBITION_PROGRESS } from "./Ambitions.js";
 
 export const GOAL_DAILY_PROGRESS = [5, 15];
 export const GOAL_UPDATE_HOUR = 7;
@@ -56,6 +57,13 @@ export class Goals {
 
     session.changeMood(npcId, 3);
     session.addNews(`${npc.data.name} realizou um sonho: ${achieved}`);
+    session.runInBackground(
+      session.ambitions.advance(
+        npcId,
+        AMBITION_PROGRESS.goal,
+        `Realizou: ${achieved}`,
+      ),
+    );
     session.notify(`${npc.data.name} realizou um sonho!`, "good");
 
     // ... and builds something in the village

@@ -3,6 +3,8 @@
 // that show up when two villagers become enemies.
 
 import { GameClock } from "./GameClock.js";
+import { AMBITION_PROGRESS } from "./Ambitions.js";
+import { MAX_GATHER_QUANTITY } from "./Gathering.js";
 
 const MAX_QUEST_HOURS = 12;
 // The giver goes after the player this long before a deadline
@@ -38,12 +40,23 @@ export class Quests {
       Math.max(Math.round(action.hours) || 0, 0),
       MAX_QUEST_HOURS,
     );
+    // Something to gather beyond the island (only what exists there now)
+    const gatherable = session.gatherableItems().map(({ item }) => item);
+    const item = gatherable.includes(action.item) ? action.item : null;
+    const quantity = item
+      ? Math.min(
+          Math.max(Math.round(action.quantity) || 1, 1),
+          MAX_GATHER_QUANTITY,
+        )
+      : 0;
     const quest = session.player.addQuest({
       giverId: npcId,
       targetId: target?.id ?? null,
       title: action.title || "Pedido",
       description: action.description || "",
       deadline: hours ? session.clock.totalMinutes + hours * 60 : null,
+      item,
+      quantity,
     });
 
     if (!quest) {
@@ -63,16 +76,38 @@ export class Quests {
   /** @returns {Promise<string|null>} Why it failed, if it did. */
   async complete(npcId, questId) {
     const { session } = this;
+
+    // Bringing things: the player must have them (they are handed over)
+    const asked = session.player.quests.find(
+      (candidate) => candidate.id === questId && candidate.status === "active",
+    );
+    if (asked?.item) {
+      const owned = session.player.quantityOf(asked.item);
+      if (owned < asked.quantity) {
+        return `The traveler doesn't have ${asked.quantity} ${asked.item} yet (they have ${owned}). The request is not done: tell them.`;
+      }
+    }
+
     const quest = session.player.completeQuest(questId, npcId);
 
     if (!quest) {
       return `There is no active request #${questId} involving you.`;
+    }
+    if (quest.item) {
+      session.player.removeItem(quest.item, quest.quantity);
     }
 
     const giver = session.nameOf(quest.giverId);
     session.player.changeReputation(quest.giverId, 2);
     session.changeMood(quest.giverId, 1);
     session.goals.advance(quest.giverId, GOAL_PROGRESS_FOR_HELP);
+    session.runInBackground(
+      session.ambitions.advance(
+        quest.giverId,
+        AMBITION_PROGRESS.quest,
+        `O viajante ajudou: ${quest.title}`,
+      ),
+    );
     await session.remember(
       quest.giverId,
       `[about the traveler] The traveler helped me: ${quest.title}.`,

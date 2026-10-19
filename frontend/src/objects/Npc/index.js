@@ -166,6 +166,10 @@ export class Npc extends GameObject {
         this.update(data);
         break;
 
+      // Answered to the journal (see main.js)
+      case protocol.NPC_MEMORY_RESULT:
+        break;
+
       case protocol.NPC_TYPING:
         if (chatContainer.agentId === this.id) {
           chatContainer.setTyping(this.data.name);
@@ -467,8 +471,21 @@ export class Npc extends GameObject {
     return this.indoor?.place ?? this.outdoorPlace;
   }
 
+  /**
+   * Whether the NPC is in Pedravento now: people of the town (unless
+   * visiting the village) and villagers that went there for the day.
+   */
+  get isInTown() {
+    return this.data.away
+      ? this.data.away === "town"
+      : this.data.region === "town";
+  }
+
   /** The place of the village the NPC is going to or staying at. */
   get outdoorPlace() {
+    // In the town they walk around the square (the places are of the village)
+    if (this.isInTown) return null;
+
     // Bandits stay where they attacked
     if (this.data.bandit) {
       return this.routine[0] ?? null;

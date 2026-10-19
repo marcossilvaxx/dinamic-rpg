@@ -136,6 +136,8 @@ O jogo já roda enquanto o mundo é gerado: o mapa aparece na hora, e os morador
 
 **Sonhos:** cada morador tem uma meta pessoal, que avança um pouco por dia e mais rápido quando você ajuda. Quando ele realiza, é notícia, e ele passa a sonhar com outra coisa.
 
+**Ambições de longo prazo:** além dos sonhos do dia a dia, cada morador tem uma ambição de vida em 3 etapas ("abrir uma padaria", "fazer as pazes com o irmão"), criada pelo modelo para todos de uma vez. Ela só anda com o que acontece na história: o modelo avalia se cada conversa entre moradores e cada conversa com você ajudou ("pouco" ou "muito"), e pedidos cumpridos, presentes queridos e sonhos realizados também contam. Cada etapa é notícia; a ambição realizada vira uma construção na vila e começa outra. O diário mostra as etapas e o que fez cada uma avançar.
+
 **Mapa vivo:** o mapa muda com o tempo e com a história.
 
 - **Dia e noite:** à noite as janelas das casas acendem (e apagam quando todos dormem), os postes iluminam as ruas, a fogueira do jardim é acesa no começo da noite e você carrega uma lanterna. As chaminés soltam fumaça nas refeições e no frio.
@@ -148,7 +150,7 @@ O jogo já roda enquanto o mundo é gerado: o mapa aparece na hora, e os morador
 - **Eventos do mapa:** uma tempestade pode derrubar uma árvore numa estrada (corte com um machado para ganhar lenha e a gratidão da vila, ou os moradores tiram no dia seguinte), a maré alta cobre o píer e o barco não sai por algumas horas, e num verão seco a Floresta Sombria pode pegar fogo: dá para ver a fumaça da vila, ninguém vai para lá até apagar, e parte da mata fica queimada por uns dias. Os moradores por perto comentam quando algo começa e todos lembram do que aconteceu.
 - **Bichos e água:** galinhas que fogem de você, um gato que te segue depois de um carinho, pássaros que pousam e voam quando alguém se aproxima, gaivotas, borboletas, vaga-lumes nas noites quentes, peixes pulando perto do píer, ondas na costa e o brilho do sol na água.
 
-**Interiores:** dá para entrar na taverna, no armazém e nas casas (**F** na porta) e sair pelo tapete. Os moradores entram quando chegam ao lugar da rotina: almoçam e passam a noite na taverna, trabalham no balcão do armazém e dormem em casa. A taverna só fecha de madrugada e o armazém abre de dia. Uma casa só abre se tiver alguém acordado lá dentro, a menos que você seja amigo de quem mora lá. Fechada, a porta diz se estão todos dormindo ou onde estão os moradores. Lá dentro: no balcão da taverna dá para pedir uma sopa (3 moedas), no balcão do armazém ver o que está à venda, e na cama descansar (de noite até as 7h, de dia um cochilo de 2h). Um morador que quer falar com você entra no prédio para te encontrar.
+**Interiores:** dá para entrar na taverna, no armazém e nas casas (**F** na porta) e sair pelo tapete. Os moradores entram quando chegam ao lugar da rotina: almoçam e passam a noite na taverna, trabalham no balcão do armazém e dormem em casa. A taverna só fecha de madrugada e o armazém abre de dia. Uma casa só abre se tiver alguém acordado lá dentro, a menos que você seja amigo de quem mora lá. Fechada, a porta diz se estão todos dormindo ou onde estão os moradores. Lá dentro: no balcão da taverna dá para pedir uma sopa (3 moedas), no balcão do armazém ver o que está à venda, e na cama descansar (de noite até as 7h, de dia um cochilo de 2h). Um morador que quer falar com você entra no prédio para te encontrar. O lado de dentro mostra a vida de quem mora ou trabalha ali: fica bagunçado quando a pessoa está triste, os presentes que você deu ficam numa prateleira e, no trabalho, os pacotes e bilhetes das encomendas do dia se acumulam.
 
 **Uma vila planejada pelo modelo:** ao criar o mundo, o modelo de linguagem decide o que construir nos terrenos vazios do mapa (casas, ferraria, enfermaria, padaria...), dá nome a cada construção, escolhe quem mora ou trabalha nela, como ela é por fora (tamanho, telhado, paredes, janelas, chaminé, a placa do ofício e o que fica na porta) e que móveis ela tem por dentro. O jogo desenha esses prédios e seus interiores com código (pixel art gerada, sem imagens): cada partida tem uma vila diferente, e a rotina de cada morador começa pela sua casa ou pelo seu trabalho. Os móveis são posicionados sempre deixando passagem até a porta. A página http://localhost:5173/preview.html mostra exemplos de prédios e interiores gerados ao lado dos feitos com tileset.
 
@@ -161,7 +163,13 @@ O jogo já roda enquanto o mundo é gerado: o mapa aparece na hora, e os morador
 
 No menu do barco também dá para **explorar o mar aberto** (uma hora): cada viagem acha uma ilha desconhecida (Ilha das Gaivotas, Rochedo do Farol, Ilha do Naufrágio), com árvores, arbustos e um baú meio enterrado, que passa a aparecer no **mapa náutico**. O mapa é desenhado a partir dos mapas gerados, com as ilhas ainda não achadas como "?" na névoa.
 
-**Interface:** minimapa no canto (**N** mostra ou esconde), nome do lugar ao entrar nele e sons sintetizados: pássaros de dia, grilos à noite, chuva, trovões, passos e a "voz" de cada personagem. **M** liga ou desliga o som. **P** pausa e despausa o jogo: o tempo da vila (relógio, clima, festas, prazos e eventos) para.
+As regiões mudam com o que você faz: a mata cresce onde ninguém corta (árvores novas para cortar a cada poucos dias), minerar muito abre galerias novas na mina e vender muito em Pedravento faz a cidade construir prédios novos.
+
+Alguns dias um morador pega o barco para passar o dia em Pedravento, ou alguém da cidade vem visitar a vila. Eles conversam com quem está lá (se você não estiver por perto, a conversa acontece sem você) e, à noite, voltam com as notícias, então as fofocas e as amizades atravessam o mar.
+
+Os moradores sabem desses lugares e podem pedir coisas que só se acham lá: o jogo informa ao servidor quantas árvores, pedras, cristais e arbustos cada região gerada tem, e o modelo só pode pedir o que existe naquela partida (por exemplo, "traga 3 ervas da Floresta Sombria"). O pedido só é concluído quando você entrega os itens, e o diário mostra quantos você já tem.
+
+**Interface:** minimapa no canto (**N** mostra ou esconde), nome do lugar ao entrar nele e sons sintetizados: pássaros de dia (mais na floresta), grilos e corujas à noite, ondas perto do mar, gotas na mina, chuva (abafada dentro das casas), trovões, a "voz" de cada personagem e passos que mudam com o chão (grama, areia, terra, pedra, madeira, neve e caverna). **M** liga ou desliga o som. **P** pausa e despausa o jogo: o tempo da vila (relógio, clima, festas, prazos e eventos) para.
 
 ## Objetivos e vida da vila
 
@@ -180,6 +188,7 @@ Aperte **J** para abrir o diário, com pedidos, mistério, pessoas, inventário,
 - **Humor:** o humor de cada morador muda com as conversas, os eventos e o seu comportamento, e afeta como ele fala.
 - **Amizades e brigas:** moradores com afinidade alta viram amigos e se encontram mais. Os que brigam passam a se evitar, com um ícone de raiva. Essas mudanças viram notícia.
 - **Memória de longo prazo:** quando um morador acumula fatos demais, os mais antigos viram entradas de um diário em vez de serem esquecidos.
+- **O que sabem sobre você:** na aba "Pessoas" do diário, "O que sabe sobre você?" mostra, nas palavras do morador, o que ele lembra de você (o que você fez, disse ou o que contaram a ele), a partir das memórias que ele guarda.
 - **Amizade, namoro e rivalidade:** além da reputação, cada morador pode virar seu amigo, melhor amigo, namorado(a) (um de cada vez) ou rival. Cada um adora e detesta certos presentes, e você pode convidar alguém para a festa do dia. Um amigo que anda com você ajuda a convencer os outros a falar.
 - **Escolhas com consequência:** quando o culpado confessa, só você sabe. Decida no diário: contar à vila (justiça e título) ou guardar o segredo (um aliado e algumas moedas). Mas o segredo pode vazar, e aí a vila não gosta nada.
 - **Brigas para resolver:** quando dois moradores viram inimigos, um deles te pede para ajudar a fazer as pazes. Convença o outro, e os dois voltam a se falar.
@@ -234,6 +243,7 @@ backend/
   game/Commerce.js         Economia: estoque, preços (estação e eventos), vendas e compras
   game/Bonds.js            Amizade, melhor amigo, namoro e rivalidade com o jogador; presentes e convites
   game/Goals.js            Sonhos (metas pessoais) dos moradores
+  game/Ambitions.js        Ambições de longo prazo (3 etapas) que avançam com a história
   game/FamilyLife.js       Namoros, noivados, casamentos, mudanças e filhos
   game/Visitors.js         Visitantes que passam um dia na vila
   game/Activities.js       Pesca e coleta (o que se encontra em cada estação)
@@ -243,7 +253,11 @@ backend/
   game/VillageMap.js       Mapa vivo: plantação e colheita, neve e lama, destroços, construções,
                            pegadas do mistério e objetos (poço, lenha, baús)
   game/Terrain.js          Trilhas gastas na grama e casas incendiadas (e a reconstrução)
-  game/Regions.js          Floresta, mina e vila vizinha: recursos, acampamento e comerciantes
+  game/Regions.js          Floresta, mina, vila vizinha e ilhotas: recursos, acampamento,
+                           comerciantes, exploração e como as regiões crescem
+  game/MapEvents.js        Árvore caída na estrada, maré alta no píer e incêndio na floresta
+  game/TownTrips.js        Moradores que passam o dia em Pedravento (e visitas da cidade)
+  game/Gathering.js        O que dá para coletar nas regiões (pedidos de "traga 3 ervas")
   game/seasons.js          Estações do ano
   game/NpcConversation.js  Geração da conversa entre dois NPCs
   game/PlayerState.js      Reputação, inventário, pedidos (com prazo), pessoas conhecidas e notícias
@@ -288,7 +302,12 @@ frontend/src/
   levels/world.js          Vila, interiores e regiões numa só grade de colisão
   world/TileMap.js         Desenha um mapa do Tiled tile a tile (e permite trocar tiles)
   world/Interiors.js       Entrar e sair dos prédios, moradores lá dentro, balcões, cama e luz interna
-  world/Regions.js         Viagens de barco, floresta, mina e vila vizinha (comércio e acampamento)
+  world/Regions.js         Viagens de barco, floresta, mina, vila vizinha e ilhotas (comércio,
+                           acampamento, incêndio e regiões que crescem)
+  world/MapEvents.js       Como os eventos do mapa aparecem na vila (e os comentários)
+  world/HomeLife.js        Bagunça, presentes e encomendas dentro dos prédios
+  hud/NauticalChart/       Mapa náutico (lugares e ilhas descobertas)
+  audio/surroundings.js    Chão e lugar do jogador (passos e ambiente do som)
   world/VillageLayout.js   Coloca nos terrenos os prédios da vila planejada pelo modelo
   world/island/            Ilha gerada: formato, prédios, estradas, cercas, hortas, árvores e
                            objetos (layout.js, puro e testado) e o desenho (paint.js); regiões

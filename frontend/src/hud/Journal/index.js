@@ -40,8 +40,19 @@ export class Journal {
    * @param {(npcId: number) => void} options.onAccuse
    * @param {import("../../Input").Input} options.input
    */
-  constructor({ getNpcs, onAccuse, onDecide, input, root = "game-container" }) {
+  constructor({
+    getNpcs,
+    onAccuse,
+    onDecide,
+    onAskMemory = () => {},
+    input,
+    root = "game-container",
+  }) {
     this.getNpcs = getNpcs;
+    this.onAskMemory = onAskMemory;
+    // What each NPC said they remember about the player: npcId -> answer
+    // (null while waiting)
+    this.memories = new Map();
     this.onAccuse = onAccuse;
     this.onDecide = onDecide;
     this.pendingDecision = null;
@@ -124,6 +135,10 @@ export class Journal {
     }
     this.input.blocked = false;
     this.pendingAccusation = null;
+    // Asked again next time (they may remember more by then)
+    for (const [npcId, memory] of this.memories) {
+      if (memory) this.memories.delete(npcId);
+    }
   }
 
   render() {
@@ -178,6 +193,20 @@ export class Journal {
               ]
             : []),
           element("p", { text: quest.description }),
+          ...(quest.item && quest.status === "active"
+            ? [
+                element("p", {
+                  className: "meta gather",
+                  text: `Levar: ${quest.quantity} ${quest.item} (você tem ${Math.min(
+                    quest.quantity,
+                    (playerState.state.inventory ?? []).find(
+                      (entry) =>
+                        entry.name.toLowerCase() === quest.item.toLowerCase(),
+                    )?.quantity ?? 0,
+                  )})`,
+                }),
+              ]
+            : []),
         ]),
       );
   }
@@ -398,6 +427,7 @@ export class Journal {
       title,
       bonds = [],
       goals = [],
+      ambitions = [],
       couples = [],
     } = playerState.state;
 
@@ -416,6 +446,7 @@ export class Journal {
       const wares = shops.find((shop) => shop.npcId === id)?.wares ?? [];
       const bond = bonds.find((entry) => entry.npcId === id);
       const goal = goals.find((entry) => entry.npcId === id);
+      const ambition = ambitions.find((entry) => entry.npcId === id);
       const trend = { up: " ↑", down: " ↓" };
 
       return element("article", { className: "entry" }, [
@@ -478,6 +509,8 @@ export class Journal {
               }),
             ]
           : []),
+        ...(known && ambition ? [this.renderAmbition(ambition)] : []),
+        ...(known ? this.renderMemory(id) : []),
       ]);
     });
 
@@ -506,6 +539,76 @@ export class Journal {
       ...people,
       ...family,
     ];
+  }
+
+  /** The ambition of a villager, its steps and what moved it lately. */
+  renderAmbition({ text, steps, step, progress, log, achieved }) {
+    return element("div", { className: "ambition" }, [
+      element("p", {
+        className: "meta ambition-title",
+        text: `Ambição: ${text}${achieved ? ` (já realizou ${achieved})` : ""}`,
+      }),
+      element(
+        "ol",
+        { className: "ambition-steps" },
+        steps.map((label, i) =>
+          element("li", {
+            className: i < step ? "done" : i === step ? "current" : "",
+            text: `${i < step ? "✓" : i === step ? "→" : "·"} ${label}${i === step ? ` (${progress}%)` : ""}`,
+          }),
+        ),
+      ),
+      ...log
+        .slice()
+        .reverse()
+        .map(({ when, note }) =>
+          element("p", {
+            className: "meta ambition-log",
+            text: `${when}: ${note}`,
+          }),
+        ),
+    ]);
+  }
+
+  /** "What do you know about me?": asks the server, shows the answer. */
+  renderMemory(npcId) {
+    if (!this.memories.has(npcId)) {
+      const button = element("button", {
+        className: "memory-button",
+        text: "O que sabe sobre você?",
+      });
+      button.addEventListener("click", () => {
+        this.memories.set(npcId, null);
+        this.onAskMemory(npcId);
+        this.render();
+      });
+      return [button];
+    }
+
+    const memory = this.memories.get(npcId);
+    if (!memory) {
+      return [element("p", { className: "meta memory", text: "Lembrando..." })];
+    }
+    if (!memory.lines.length) {
+      return [
+        element("p", {
+          className: "meta memory",
+          text: "Ainda não lembra de nada em especial sobre você.",
+        }),
+      ];
+    }
+    return [
+      element("div", { className: "memory" }, [
+        ...memory.lines.map((line) => element("p", { text: `“${line}”` })),
+        element("p", { className: "meta", text: memory.feeling }),
+      ]),
+    ];
+  }
+
+  /** The answer of the server to "what do you know about me?". */
+  showMemory(npcId, memory) {
+    this.memories.set(npcId, memory);
+    if (this.isOpen && this.tab === "people") this.render();
   }
 
   renderConversations() {

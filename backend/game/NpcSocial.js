@@ -6,6 +6,7 @@ import * as protocol from "../protocol.js";
 import { hearsayChange } from "./hearsay.js";
 import { describeMood } from "./needs.js";
 import { clampAffinity, generateNpcConversation } from "./NpcConversation.js";
+import { AMBITION_PROGRESS } from "./Ambitions.js";
 
 // Affinity from which two NPCs are friends / enemies (visible in the game)
 export const FRIENDS_AFFINITY = 5;
@@ -81,6 +82,7 @@ export class NpcSocial {
         met: session.player.met.has(npc.id),
       },
       goal: session.goals.describeFor(npc.id),
+      ambition: session.ambitions.describeFor(npc.id),
       family: await session.family.describeFor(npc.id, { thirdPerson: true }),
     };
   }
@@ -202,6 +204,8 @@ export class NpcSocial {
       affinityDelta,
       outcome,
       aboutTraveler,
+      ambition = { a: "none", b: "none" },
+      ambitionNote = { a: "", b: "" },
     } = conversation;
     this.busyNpcs.delete(aId);
     this.busyNpcs.delete(bId);
@@ -234,6 +238,21 @@ export class NpcSocial {
 
       if (aboutTraveler) {
         await this.spreadOpinion(a, b);
+      }
+
+      // Their big ambitions may move with what they talked about
+      for (const [speaker, npcId] of [
+        ["a", aId],
+        ["b", bId],
+      ]) {
+        const amount = AMBITION_PROGRESS[ambition[speaker]];
+        if (amount) {
+          await session.ambitions.advance(
+            npcId,
+            amount,
+            ambitionNote[speaker] || "",
+          );
+        }
       }
 
       // The client already makes the NPC go after the player; the server

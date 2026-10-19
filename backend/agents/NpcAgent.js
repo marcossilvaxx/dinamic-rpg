@@ -124,7 +124,7 @@ export class NpcAgent {
     this.transcript = [];
 
     if (!transcript.some((line) => line.startsWith("Traveler:"))) {
-      return { fact: null, testimony: null };
+      return { fact: null, testimony: null, ambition: "none" };
     }
 
     const { content } = await this.llm.complete({
@@ -148,7 +148,12 @@ export class NpcAgent {
       await this.remember(`[talking with the traveler] ${fact}`);
     }
 
-    return { fact, testimony };
+    return {
+      fact,
+      testimony,
+      ambition: content.ambition ?? "none",
+      ambitionNote: content.ambitionNote?.trim() ?? "",
+    };
   }
 
   async processChat(message, { isGreeting = false, onDelta } = {}) {
@@ -159,7 +164,7 @@ export class NpcAgent {
 
     const userMessage = { role: "user", content: message };
 
-    const { places, everyone } = this.getVillage();
+    const { places, everyone, items = [] } = this.getVillage();
     const context = this.getWorldContext();
 
     const request = {
@@ -176,7 +181,7 @@ export class NpcAgent {
       }),
       // Same tools for every NPC (tools go before the messages, so they are
       // part of the cached prefix)
-      tools: buildNpcTools({ places, villagers: everyone }),
+      tools: buildNpcTools({ places, villagers: everyone, items }),
       schema: npcDialogSchema,
       temperature: this.temperature,
     };

@@ -267,7 +267,7 @@ export class NpcDirector extends GameObject {
       this.player.position.x < town.origin.x + town.width;
     const candidates = [...this.npcs.values()]
       .filter((npc) => npc.isAvailableForConversation())
-      .filter((npc) => npc.data.region !== "town" || playerInTown)
+      .filter((npc) => !npc.isInTown || playerInTown)
       .map((npc) => {
         // NPCs start together, so they wait a bit before the first talk
         if (!this.cooldowns.has(npc.id)) {

@@ -4,6 +4,7 @@
 
 import { NPC_TOOL_RESULTS } from "../agents/npcTools.js";
 import { COINS, MAX_ITEMS_PER_GIFT } from "./PlayerState.js";
+import { AMBITION_PROGRESS } from "./Ambitions.js";
 
 const MAX_COINS_PER_GIFT = 20;
 
@@ -261,7 +262,18 @@ export class PlayerChat {
     const { session } = this;
     this.companions.delete(npcId);
 
-    const { fact, testimony } = await session.getNpc(npcId).summarizeChat();
+    const { fact, testimony, ambition, ambitionNote } = await session
+      .getNpc(npcId)
+      .summarizeChat();
+
+    const amount = AMBITION_PROGRESS[ambition];
+    if (amount) {
+      await session.ambitions.advance(
+        npcId,
+        amount,
+        ambitionNote || "Conversou com o viajante sobre o seu sonho",
+      );
+    }
 
     if (testimony) {
       session.investigation.addTestimony(npcId, testimony);

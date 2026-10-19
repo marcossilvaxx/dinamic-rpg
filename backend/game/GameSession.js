@@ -17,7 +17,14 @@ import { NpcSocial } from "./NpcSocial.js";
 import { PlayerChat } from "./PlayerChat.js";
 import { COINS, PlayerState } from "./PlayerState.js";
 import { Quests } from "./Quests.js";
+import { describeGathering, gatherableItems } from "./Gathering.js";
 import { titlesPrompt, titlesSchema } from "../prompts/titles.js";
+import { TownTrips } from "./TownTrips.js";
+import {
+  travelerMemoryPrompt,
+  travelerMemorySchema,
+} from "../prompts/travelerMemory.js";
+import { Ambitions } from "./Ambitions.js";
 import { MapEvents } from "./MapEvents.js";
 import { Regions } from "./Regions.js";
 import { SEASON_INFO, seasonOf } from "./seasons.js";
@@ -37,6 +44,8 @@ const MOOD_DECAY_GAME_MINUTES = 180;
 const TICK_GAME_MINUTES = 5;
 // Places that are buildings when the client didn't say (old saved games)
 const DEFAULT_BUILDINGS = ["tavern", "west_house", "east_house"];
+// Of them, the ones where people work (the inside shows their orders)
+const DEFAULT_WORKPLACES = ["tavern", "east_house"];
 // Tiles of the village map (worn paths)
 const MAX_MAP_TILES = 10000;
 // Resting in a bed (see rest)
@@ -148,6 +157,12 @@ export class GameSession {
     this.terrain = new Terrain(this);
     this.regions = new Regions(this);
     this.mapEvents = new MapEvents(this);
+    this.ambitions = new Ambitions(this);
+    this.trips = new TownTrips(this);
+    // How many trees, rocks... each region has (sent by the client)
+    this.regionResources = null;
+    // What each NPC told the player they remember (see travelerMemory)
+    this.travelerMemories = new Map();
 
     this.paused = false;
     this.moods = new Map(); // npcId -> -5..5
@@ -275,10 +290,90 @@ export class GameSession {
       shops,
       bonds: this.bonds.toJSON(),
       goals: this.goals.toJSON(),
+      ambitions: this.ambitions.toJSON(),
       couples: this.family.toJSON(),
       combat: this.combat.toJSON(),
       season: this.life.toJSON().seasonLabel,
+      homes: this.homesJSON(),
     };
+  }
+
+  /**
+   * What the NPC remembers about the player, told by the NPC in the
+   * language of the player (journal). Cached until the memories change.
+   * @returns {Promise<{lines: string[], feeling: string, count: number}>}
+   */
+  async travelerMemory(npcId) {
+    const npc = this.getNpc(npcId);
+    const facts = (await this.store.getFacts(npcId)).filter((fact) =>
+      /traveler/i.test(fact),
+    );
+    const opinion = this.player.getReputation(npcId);
+
+    if (facts.length === 0) {
+      return { lines: [], feeling: "", count: 0 };
+    }
+
+    const key = JSON.stringify([facts, opinion]);
+    const cached = this.travelerMemories.get(npcId);
+    if (cached?.key === key) return cached.result;
+
+    const { content } = await this.llm.complete({
+      messages: [
+        {
+          role: "user",
+          content: travelerMemoryPrompt({
+            npc: npc.data,
+            facts: facts.slice(-12),
+            opinion,
+            language: this.language,
+          }),
+        },
+      ],
+      schema: travelerMemorySchema,
+    });
+    const result = {
+      lines: content.lines
+        .map((line) => line.trim().slice(0, 160))
+        .filter(Boolean)
+        .slice(0, 5),
+      feeling: content.feeling.trim().slice(0, 160),
+      count: facts.length,
+    };
+    this.travelerMemories.set(npcId, { key, result });
+    return result;
+  }
+
+  /**
+   * How the inside of each building shows the life of who lives or works
+   * there: a mess when they are sad, the gifts of the player on a shelf,
+   * orders piling up at work (see frontend world/HomeLife.js).
+   */
+  homesJSON() {
+    const byPlace = new Map();
+    for (const npc of this.npcs.values()) {
+      const placeId = npc.data.routine?.[0];
+      if (!placeId || npc.data.visitor || !this.isBuilding(placeId)) continue;
+      byPlace.set(placeId, [...(byPlace.get(placeId) ?? []), npc.id]);
+    }
+
+    return [...byPlace].map(([placeId, owners]) => {
+      const mood = Math.min(...owners.map((id) => this.moods.get(id) ?? 0));
+      const work =
+        this.places.find((place) => place.id === placeId)?.kind === "work" ||
+        DEFAULT_WORKPLACES.includes(placeId);
+      return {
+        placeId,
+        mess: Math.max(0, Math.min(1, (-mood - 1) / 3)),
+        gifts: owners.flatMap((id) => this.bonds.gifts.get(id) ?? []).slice(-4),
+        orders: work
+          ? owners.reduce(
+              (sum, id) => sum + (this.commerce.orders.get(id) ?? 0),
+              0,
+            )
+          : 0,
+      };
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -338,6 +433,11 @@ export class GameSession {
     this.save();
   }
 
+  /** What the player can gather beyond the island now (see Gathering.js). */
+  gatherableItems() {
+    return gatherableItems(this.regionResources, this.regions.discovered);
+  }
+
   /** Whether the NPC lives in the village (not a visitor). */
   isVillager(npcId) {
     return this.cast.some((villager) => villager.slot === npcId);
@@ -369,6 +469,7 @@ export class GameSession {
         getVillage: () => ({
           places: this.places,
           everyone: this.getVillagers(null),
+          items: this.gatherableItems().map(({ item }) => item),
         }),
         getSituation: () => this.getSituation(id),
         resolveActions: (actions) =>
@@ -377,6 +478,7 @@ export class GameSession {
         getSummaryContext: () => ({
           mysteryTitle: this.mystery?.isOpen ? this.mystery.title : null,
           language: this.language,
+          ambition: this.ambitions.describeFor(id),
         }),
         maxMemoryMessages: this.maxMemoryMessages,
         maxFacts: this.maxFacts,
@@ -442,6 +544,11 @@ export class GameSession {
       bond: this.bonds.describeFor(npcId),
       companion: this.playerChat.describeCompanion(npcId),
       goal: this.goals.describeFor(npcId),
+      ambition: this.ambitions.describeFor(npcId),
+      trip: this.trips.describeFor(npcId),
+      gathering: this.getNpc(npcId).data.visitor
+        ? null
+        : describeGathering(this.gatherableItems()) || null,
       injury: this.combat.describeFor(npcId),
       family: await this.family.describeFor(npcId),
       visitor: this.getNpc(npcId).data.visitor
@@ -804,7 +911,15 @@ export class GameSession {
       await this.bandits.update(day, hour, now);
       const mapChanged = await this.villageMap.update(now, day, hour);
       const terrainChanged = await this.terrain.update(day);
-      if (mapChanged || terrainChanged) {
+      const regionsChanged = await this.regions.update(day);
+      await this.trips.update(day, hour);
+      const eventsChanged = await this.mapEvents.update(
+        now,
+        hour,
+        this.life.weather.current,
+        this.life.season,
+      );
+      if (mapChanged || terrainChanged || regionsChanged || eventsChanged) {
         this.emitWorldState();
       }
       this.save();
@@ -880,6 +995,7 @@ export class GameSession {
       places: this.places,
       language: this.language,
       islandSeed: this.islandSeed,
+      regionResources: this.regionResources,
       worldEventInterval: this.worldEventInterval,
       totalMinutes: this.clock.totalMinutes,
       npcs: [...this.npcs.values()].map(({ id, data }) => ({ id, data })),
@@ -904,6 +1020,8 @@ export class GameSession {
       terrain: this.terrain.toState(),
       regions: this.regions.toState(),
       mapEvents: this.mapEvents.toState(),
+      ambitions: this.ambitions.toState(),
+      trips: this.trips.toState(),
     };
   }
 
@@ -927,6 +1045,8 @@ export class GameSession {
 
     const session = new GameSession(options);
     await session.restoreState(state);
+    // Games saved before the ambitions and the titles existed get them now
+    session.runInBackground(session.ambitions.createAll());
     session.runInBackground(session.translateTitles());
     return session;
   }
@@ -938,6 +1058,7 @@ export class GameSession {
       places: state.places,
       language: state.language,
       islandSeed: state.islandSeed ?? null,
+      regionResources: state.regionResources ?? null,
       worldEventInterval: state.worldEventInterval,
       moods: new Map(state.moods),
       lastChatAt: new Map(state.lastChatAt),
@@ -973,6 +1094,8 @@ export class GameSession {
     if (state.terrain) this.terrain.restoreState(state.terrain);
     if (state.regions) this.regions.restoreState(state.regions);
     if (state.mapEvents) this.mapEvents.restoreState(state.mapEvents);
+    if (state.ambitions) this.ambitions.restoreState(state.ambitions);
+    if (state.trips) this.trips.restoreState(state.trips);
   }
 
   /** Stops the session; `forget` also deletes it from Redis. */

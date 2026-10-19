@@ -83,5 +83,7 @@ export async function generateNpcConversation({
     memories: content.memories,
     affinityDelta: content.affinityDelta,
     aboutTraveler: Boolean(content.aboutTraveler),
+    ambition: content.ambition ?? { a: "none", b: "none" },
+    ambitionNote: content.ambitionNote ?? { a: "", b: "" },
   };
 }

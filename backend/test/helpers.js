@@ -99,7 +99,26 @@ export const fakeLlm = (responses = {}, toolCalls = {}) => {
             ],
           }),
           diary_entry: () => ({ entry: "A summary of old memories." }),
+          traveler_memory: () => ({
+            lines: ["Você me ajudou com a lenha."],
+            feeling: "Gosto de você.",
+          }),
           goal: () => ({ goal: "Ensinar alguém a pescar." }),
+          // One ambition per villager named in the prompt
+          ambitions: () => ({
+            ambitions: [...options.system.matchAll(/^- (Npc\d+) \(/gm)].map(
+              ([, name]) => ({
+                name,
+                ambition: `${name} quer abrir uma padaria`,
+                steps: ["Juntar moedas", "Comprar um forno", "Abrir as portas"],
+              }),
+            ),
+          }),
+          ambition: () => ({
+            name: "Npc1",
+            ambition: "Ensinar os filhos a pescar",
+            steps: ["Fazer redes", "Achar um barco", "Pescar juntos"],
+          }),
           fight_lines: () => ({
             taunts: ["Vem!", "Só isso?", "Agora vai!"],
             lose: "Chega, você venceu.",

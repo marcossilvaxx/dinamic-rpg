@@ -12,6 +12,8 @@ export const CREATE_AGENTS = "create_agents";
 export const ACCUSE = "accuse"; // data: { npcId } (mystery of the village)
 export const CHAT = "chat"; // agentId, data: { message }
 export const CHAT_CLOSED = "chat_closed"; // agentId
+// agentId (journal: what the NPC remembers about the player)
+export const NPC_MEMORY = "npc_memory";
 // agentId, data: { companionId? } (NPC walking with the player). The NPC may
 // greet the player first (chat_response)
 export const CHAT_OPENED = "chat_opened";
@@ -112,4 +114,6 @@ export const ACCUSATION_RESULT = "accusation_result";
 // data: { conversationId, a, b, lines: [{ speakerId, text, emotion }],
 //         outcome: { action, targetId, callout } }
 export const NPC_DIALOGUE = "npc_dialogue";
+// agentId, data: { lines, feeling, count } (answer to npc_memory)
+export const NPC_MEMORY_RESULT = "npc_memory_result";
 export const ERROR = "error"; // agentId?, data: { message, requestType, request }

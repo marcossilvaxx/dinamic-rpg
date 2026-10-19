@@ -305,6 +305,8 @@ export class VillageBuilder {
 
     await session.investigation.start();
     session.save();
+    // The ambitions of the villagers (one call, in the background)
+    session.runInBackground(session.ambitions.createAll());
 
     return npcs;
   }

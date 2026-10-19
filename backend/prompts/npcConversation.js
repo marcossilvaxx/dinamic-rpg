@@ -12,7 +12,7 @@ Gender: ${npc.gender}
 Occupation: ${npc.occupation ?? "villager"}
 Personality: ${npc.personality.join(", ")}
 Mood right now: ${npc.mood ?? "normal"}
-Opinion of the traveler: ${describeOpinion(npc.opinionOfTraveler)}${npc.goal ? `\nPersonal goal these days: ${npc.goal}` : ""}${npc.family ? `\nFamily: ${npc.family}` : ""}
+Opinion of the traveler: ${describeOpinion(npc.opinionOfTraveler)}${npc.goal ? `\nPersonal goal these days: ${npc.goal}` : ""}${npc.ambition ? `\nBig ambition of their life: ${npc.ambition}` : ""}${npc.family ? `\nFamily: ${npc.family}` : ""}
 Story: ${npc.story}${isPrivate && npc.secret ? `\nSecret (may come up only with someone they trust): ${npc.secret}` : ""}
 Things ${npc.name} knows or heard recently (may be used as topics or gossip):
 ${facts.length ? facts.map((fact) => `- ${fact}`).join("\n") : "- Nothing in particular."}`;
@@ -68,6 +68,7 @@ ${
 - "memories" is a short sentence (in English) of what each character will remember from this conversation, written from their own point of view.
 - "affinityDelta" is how much their affinity changed with this conversation.
 - "aboutTraveler" is true when they talked about the traveler (what the traveler did, said or is like).
+- "ambition": for each character, how much this conversation moved their big ambition: "none" (most conversations), "small" (they talked about it, got an idea or encouragement) or "big" (real progress: a decision, a deal, help, making peace). "ambitionNote": one short sentence in ${language} saying what moved (empty when "none").
 - LANGUAGE: everything the characters say ("lines" and "callout") is in ${language}, even though the notes below are in English. Only "memories" are in English.
 
 # Characters
@@ -132,6 +133,24 @@ export const npcConversationSchema = {
       },
       affinityDelta: { type: "integer", enum: [-2, -1, 0, 1, 2] },
       aboutTraveler: { type: "boolean" },
+      ambition: {
+        type: "object",
+        properties: {
+          a: { type: "string", enum: ["none", "small", "big"] },
+          b: { type: "string", enum: ["none", "small", "big"] },
+        },
+        required: ["a", "b"],
+        additionalProperties: false,
+      },
+      ambitionNote: {
+        type: "object",
+        properties: {
+          a: { type: "string" },
+          b: { type: "string" },
+        },
+        required: ["a", "b"],
+        additionalProperties: false,
+      },
     },
     required: [
       "lines",
@@ -139,6 +158,8 @@ export const npcConversationSchema = {
       "memories",
       "affinityDelta",
       "aboutTraveler",
+      "ambition",
+      "ambitionNote",
     ],
     additionalProperties: false,
   },
