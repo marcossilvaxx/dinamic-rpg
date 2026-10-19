@@ -22,6 +22,7 @@ ${people.map(({ gender, look }, i) => `${i + 1}. ${gender.toLowerCase()}, looks 
 For each person, in the same order:
 - "name": a name VERY different from each other and from these names (other first letter and sound): ${usedNames.join(", ")}.
 - "occupation": short, in English, fitting a market town (e.g. "harbor master", "town guard", "innkeeper", "scholar", "fish seller").
+- "title": the same occupation in ${language}, short and matching the gender of the person (shown to the player).
 - "personality": 3 or 4 traits.
 - "story": who they are in the town, what they do every day, what they know or think about the island village and its people (by what they heard: trade, rumors, the bandits of the forest), and what they want right now. Concrete, 3 or 4 sentences.
 - "secret": something small and concrete they hide.
@@ -40,6 +41,7 @@ export const townsfolkSchema = {
           properties: {
             name: { type: "string" },
             occupation: { type: "string" },
+            title: { type: "string" },
             personality: { type: "array", items: { type: "string" } },
             story: { type: "string" },
             secret: { type: "string" },
@@ -49,6 +51,7 @@ export const townsfolkSchema = {
           required: [
             "name",
             "occupation",
+            "title",
             "personality",
             "story",
             "secret",

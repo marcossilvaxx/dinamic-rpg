@@ -64,6 +64,7 @@ export const fakeLlm = (responses = {}, toolCalls = {}) => {
               slot: Number(slot),
               name: `Npc${slot}`,
               occupation: "Farmer",
+              title: "Fazendeiro",
             })),
           }),
           character: () => ({
@@ -109,6 +110,7 @@ export const fakeLlm = (responses = {}, toolCalls = {}) => {
           visitor: () => ({
             name: "Zoltan",
             occupation: "traveling spice merchant",
+            title: "mercador de especiarias",
             personality: ["cheerful"],
             story: "Comes from the south.",
             wares: [{ item: "pimenta", price: 12 }],

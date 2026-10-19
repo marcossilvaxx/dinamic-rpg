@@ -5,7 +5,12 @@
 
 import { describePlaces } from "./worldContext.js";
 
-export const worldHistoryPrompt = ({ places = [], slots, problems = [] }) => `
+export const worldHistoryPrompt = ({
+  places = [],
+  slots,
+  problems = [],
+  language = "English",
+}) => `
 # Introduction
 
 You are a fictional-adventure writer.
@@ -19,7 +24,7 @@ ${describePlaces(places)}
 
 # Villagers
 
-Create exactly ${slots.length} villagers, one for each slot below, matching the gender and the look of the slot. Give each one a name and an occupation that fits their look and the village.
+Create exactly ${slots.length} villagers, one for each slot below, matching the gender and the look of the slot. Give each one a name and an occupation that fits their look and the village. The "occupation" is in English; the "title" is the same occupation in ${language}, short (1 to 3 words) and matching the gender of the villager (it is shown to the player).
 
 ${slots.map(({ slot, gender, look }) => `- Slot ${slot}: ${gender}. ${look}`).join("\n")}
 
@@ -54,8 +59,9 @@ export const worldHistorySchema = {
             slot: { type: "integer" },
             name: { type: "string" },
             occupation: { type: "string" },
+            title: { type: "string" },
           },
-          required: ["slot", "name", "occupation"],
+          required: ["slot", "name", "occupation", "title"],
           additionalProperties: false,
         },
       },

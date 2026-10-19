@@ -33,7 +33,7 @@ const FALLBACK_NAMES = [
 ];
 
 /**
- * @param {{slot: number, name: string, occupation: string}[]} villagers
+ * @param {{slot: number, name: string, occupation: string, title?: string}[]} villagers
  * @param {number} quantity Expected number of villagers (slots 1..quantity).
  * @returns {string[]} Problems to fix, empty when the cast is valid.
  */
@@ -95,7 +95,14 @@ export function fixCast(villagers, quantity) {
 
     used.add(firstName(name));
     usedInitials.add(initial(name));
-    cast.push({ slot, name, occupation: villager.occupation.trim() });
+    cast.push({
+      slot,
+      name,
+      occupation: villager.occupation.trim(),
+      // The occupation in the language of the player (games saved before it
+      // existed don't have it)
+      ...(villager.title?.trim() && { title: villager.title.trim() }),
+    });
   }
 
   return cast;

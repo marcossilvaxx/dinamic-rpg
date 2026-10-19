@@ -17,6 +17,7 @@ import { NpcSocial } from "./NpcSocial.js";
 import { PlayerChat } from "./PlayerChat.js";
 import { COINS, PlayerState } from "./PlayerState.js";
 import { Quests } from "./Quests.js";
+import { titlesPrompt, titlesSchema } from "../prompts/titles.js";
 import { Regions } from "./Regions.js";
 import { SEASON_INFO, seasonOf } from "./seasons.js";
 import { SeekPlanner } from "./Seeking.js";
@@ -291,6 +292,44 @@ export class GameSession {
     return this.cast
       .filter((villager) => villager.slot !== npcId)
       .map(({ name, occupation }) => ({ name, occupation }));
+  }
+
+  /**
+   * The occupations in the language of the player, for the NPCs without
+   * one (games saved before the titles existed). One call for all.
+   */
+  async translateTitles() {
+    const people = [...this.npcs.values()].filter(
+      (npc) => !npc.data.title && npc.data.occupation && !npc.data.bandit,
+    );
+    if (people.length === 0 || this.language === "English") return;
+
+    const { content } = await this.llm.complete({
+      messages: [
+        {
+          role: "user",
+          content: titlesPrompt({
+            people: people.map((npc) => npc.data),
+            language: this.language,
+          }),
+        },
+      ],
+      schema: titlesSchema,
+    });
+    for (const npc of people) {
+      const title = content.titles
+        .find((entry) => entry.name.trim() === npc.data.name)
+        ?.title.trim();
+      if (!title) continue;
+      npc.data.title = title.slice(0, 60);
+      const villager = this.cast.find((entry) => entry.slot === npc.id);
+      if (villager) villager.title = npc.data.title;
+      this.emit(protocol.NPC_UPDATED, {
+        agentId: npc.id,
+        data: { title: npc.data.title },
+      });
+    }
+    this.save();
   }
 
   /** Whether the NPC lives in the village (not a visitor). */
@@ -874,6 +913,7 @@ export class GameSession {
 
     const session = new GameSession(options);
     await session.restoreState(state);
+    session.runInBackground(session.translateTitles());
     return session;
   }
 

@@ -273,6 +273,7 @@ export class Regions {
         const data = {
           name: person.name.trim(),
           occupation: person.occupation.trim(),
+          title: person.title?.trim() || undefined,
           personality: person.personality,
           story: person.story.trim(),
           secret: person.secret.trim(),

@@ -6,7 +6,13 @@ import { npcConversationPrompt } from "../prompts/npcConversation.js";
 import { worldContext } from "../prompts/worldContext.js";
 import { GameSession } from "../game/GameSession.js";
 import { SessionStore } from "../storage/SessionStore.js";
-import { PLACES, createSession, fakeDatabase, fakeLlm } from "./helpers.js";
+import {
+  PLACES,
+  createSession,
+  fakeDatabase,
+  fakeLlm,
+  recordingSession,
+} from "./helpers.js";
 
 const toolCall = (name, args) => ({ id: name, name, arguments: args });
 
@@ -15,6 +21,7 @@ test("NPC routines only keep known places, without repetition", async () => {
 
   assert.deepEqual(session.npcs.get(1).data.routine, ["dock"]);
   assert.equal(session.npcs.get(1).data.occupation, "Farmer");
+  assert.equal(session.npcs.get(1).data.title, "Fazendeiro");
 });
 
 test("guide and introduce tools are offered only when possible", () => {
@@ -219,4 +226,27 @@ test("the village plan builds on the empty lots and gives homes", async () => {
   assert.equal(session.getNpc(2).data.routine[0], "lot_east", "lives there");
   assert.ok(session.isBuilding("lot_east"));
   assert.match(session.worldContext, /Ferraria/);
+});
+
+test("occupations of old games are translated once", async () => {
+  const llm = fakeLlm({
+    titles: ({ messages }) => ({
+      titles: [...messages[0].content.matchAll(/^- (\S+) \(/gm)].map(
+        ([, name]) => ({ name, title: `Título de ${name}` }),
+      ),
+    }),
+  });
+  const { session, sent } = await recordingSession(llm);
+  session.language = "Brazilian Portuguese";
+  for (const npc of session.npcs.values()) delete npc.data.title;
+
+  await session.translateTitles();
+  assert.equal(session.getNpc(1).data.title, "Título de Npc1");
+  assert.equal(session.cast[0].title, "Título de Npc1");
+  assert.ok(sent.some((m) => m.type === "npc_updated" && m.data.title));
+
+  // Nothing left to translate: no other call
+  const calls = llm.calls.length;
+  await session.translateTitles();
+  assert.equal(llm.calls.length, calls);
 });

@@ -52,6 +52,7 @@ import { Village } from "./world/Village";
 import { applyVillageLayout } from "./world/VillageLayout";
 import { createIsland, paintIsland } from "./world/island";
 import { roofContexts } from "./world/island/paint";
+import { occupationLabel } from "./utils/occupation";
 import {
   islandSeed,
   startNewIsland,
@@ -186,7 +187,7 @@ const journal = new Journal({
     [...npcs.values()].map(({ id, data }) => ({
       id,
       name: data.name,
-      occupation: data.occupation,
+      occupation: occupationLabel(data),
       visitor: Boolean(data.visitor),
     })),
   onAccuse: (npcId) => gameSocket.send(protocol.ACCUSE, { data: { npcId } }),

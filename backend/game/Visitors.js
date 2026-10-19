@@ -95,6 +95,7 @@ export class Visitors {
       const data = {
         name: content.name.trim(),
         occupation: content.occupation.trim(),
+        title: content.title?.trim() || undefined,
         personality: content.personality,
         story: content.story,
         routine,

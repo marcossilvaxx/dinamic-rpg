@@ -129,6 +129,7 @@ export class VillageBuilder {
               places: session.places,
               slots,
               problems,
+              language: session.language,
             }),
           },
         ],
@@ -157,7 +158,7 @@ export class VillageBuilder {
 
   async createNpc(id, sprite) {
     const { session } = this;
-    const { name, occupation } = session.cast[id - 1];
+    const { name, occupation, title } = session.cast[id - 1];
     const home =
       session.places.find((place) => place.owners?.includes(id)) ?? null;
 
@@ -178,6 +179,7 @@ export class VillageBuilder {
     const data = {
       name,
       occupation,
+      ...(title && { title }),
       ...sanitizeNpcData(content, session.places, home),
       gender: spriteGender(sprite),
       sprite,

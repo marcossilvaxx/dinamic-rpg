@@ -21,6 +21,7 @@ ${SPEECH_STYLE}
 - The visitor is ${gender.toLowerCase()} and looks like this: ${look}
 - "name": a name VERY different from these names (other first letter and sound): ${usedNames.join(", ")}.
 - "occupation": short, in English (e.g. "traveling spice merchant").
+- "title": the same occupation in ${language}, short and matching the gender of the visitor (shown to the player).
 - "personality": 3 or 4 traits.
 - "story": where they come from (without naming other people or real places), why they are passing by and what they want here today. Concrete, 3 or 4 sentences. They don't know the villagers well.
 - "wares": 2 or 3 rare things they sell, not found in the village, with prices in coins (8 to 30). Item names are short, singular and in ${language}.
@@ -35,6 +36,7 @@ export const visitorSchema = {
     properties: {
       name: { type: "string" },
       occupation: { type: "string" },
+      title: { type: "string" },
       personality: { type: "array", items: { type: "string" } },
       story: { type: "string" },
       wares: {
@@ -51,7 +53,15 @@ export const visitorSchema = {
       },
       news: { type: "string" },
     },
-    required: ["name", "occupation", "personality", "story", "wares", "news"],
+    required: [
+      "name",
+      "occupation",
+      "title",
+      "personality",
+      "story",
+      "wares",
+      "news",
+    ],
     additionalProperties: false,
   },
 };

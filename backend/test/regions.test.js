@@ -88,6 +88,7 @@ test("the first trip to the town creates its people", async () => {
       people: ["Orla", "Brannoc", "Quilla", "Extra"].map((name) => ({
         name,
         occupation: "harbor master",
+        title: "mestre do porto",
         personality: ["calm"],
         story: "Lives in the town.",
         secret: "A small secret.",
